@@ -22,4 +22,4 @@ This project features a fully automated deployment pipeline. Every push to the `
 2. **Azure Integration:** Securely deploys the `/dist` package to Azure App Service.
 
 ## 📝 About the Developer
-[https://github.com/29shnick] - Safety and Operations Manager, transitioning into the Tech industry, with a passion for building scalable technical solutions.
+[Your Name/Portfolio Link] - Safety and Operations Manager with a passion for building scalable technical solutions.
