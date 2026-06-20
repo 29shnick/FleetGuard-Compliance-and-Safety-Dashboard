@@ -1,20 +1,25 @@
-<div align="center">
-<img width="1200" height="475" alt="GHBanner" src="https://ai.google.dev/static/site-assets/images/share-ais-513315318.png" />
-</div>
+# FleetGuard Compliance & Safety Dashboard
 
-# Run and deploy your AI Studio app
+A data-driven compliance and safety portal designed to streamline fleet management operations, audit logging, and driver performance tracking.
 
-This contains everything you need to run your app locally.
+## 🚀 Live Demo
+[View the Live Application](https://fleetguard-compliance-and-safety-avfmejg5dcb0abha.centralus-01.azurewebsites.net)
 
-View your app in AI Studio: https://ai.studio/apps/8585742c-00f9-4e0d-9c0d-610a52f1ca82
+## 🛠️ Tech Stack
+* **Frontend:** React, TypeScript, Vite
+* **Hosting:** Azure App Service (Linux)
+* **Automation:** GitHub Actions (CI/CD Pipeline)
+* **Process Management:** PM2
 
-## Run Locally
+## ⚙️ Key Features
+* **Automated Deployment:** CI/CD pipeline via GitHub Actions for seamless updates.
+* **Compliance Management:** Real-time dashboard for auditing and fleet safety data.
+* **Process Optimization:** Architected for production with PM2, handling single-page application (SPA) routing.
 
-**Prerequisites:**  Node.js
+## 🏗️ Architecture & CI/CD
+This project features a fully automated deployment pipeline. Every push to the `main` branch triggers:
+1. **GitHub Actions:** Automatically builds the production-ready code.
+2. **Azure Integration:** Securely deploys the `/dist` package to Azure App Service.
 
-
-1. Install dependencies:
-   `npm install`
-2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
-3. Run the app:
-   `npm run dev`
+## 📝 About the Developer
+[https://github.com/29shnick] - Safety and Operations Manager, transitioning into the Tech industry, with a passion for building scalable technical solutions.
