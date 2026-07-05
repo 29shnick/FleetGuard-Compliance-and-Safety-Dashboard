@@ -1,1 +1,59 @@
 @import "tailwindcss";
+
+@media print {
+  /* Hide the root, header, sidebar, filters, dashboard items, and standard panels */
+  body * {
+    visibility: hidden;
+  }
+  
+  /* Show only the active printable invoice container */
+  .printable-invoice,
+  .printable-invoice * {
+    visibility: visible;
+  }
+  
+  /* Reset layout constraints of document body to optimize for portrait PDF size on paper */
+  body, html {
+    background: #ffffff !important;
+    color: #000000 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    width: 100% !important;
+    height: auto !important;
+  }
+  
+  /* Position the invoice at the very top-left of the page so it prints beautifully as a standalone document */
+  .printable-invoice {
+    position: absolute !important;
+    left: 0 !important;
+    top: 0 !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    margin: 0 !important;
+    border: none !important;
+    box-shadow: none !important;
+    background: #ffffff !important;
+    padding: 12px !important;
+    page-break-inside: avoid !important;
+  }
+
+  /* Remove any browser default headers/footers spacing margins */
+  @page {
+    size: portrait;
+    margin: 1.2cm !important;
+  }
+
+  /* Force print colored badges, stripes, and values in full color */
+  * {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  /* Hide print buttons, CEO controls, and popover headers/close triggers */
+  .print-hidden,
+  .print\:hidden,
+  button,
+  .bg-slate-950 {
+    display: none !important;
+  }
+}

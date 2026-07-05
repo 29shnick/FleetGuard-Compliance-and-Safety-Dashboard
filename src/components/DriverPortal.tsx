@@ -575,10 +575,10 @@ export default function DriverPortal({
 
       {/* Paycheck detail popover overlay */}
       {selectedStub && (
-        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center p-4 z-50 animate-fade-in">
-          <div className="bg-white rounded-2xl max-w-lg w-full overflow-hidden shadow-2xl border border-slate-200 flex flex-col animate-scale-up">
+        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center p-4 z-50 animate-fade-in print:bg-white print:p-0">
+          <div className="bg-white rounded-2xl max-w-lg w-full overflow-hidden shadow-2xl border border-slate-200 flex flex-col animate-scale-up printable-invoice">
             
-            <div className="bg-slate-950 p-4 font-mono text-white flex justify-between items-center">
+            <div className="bg-slate-950 p-4 font-mono text-white flex justify-between items-center print:hidden">
               <div>
                 <span className="text-[9px] uppercase tracking-widest text-indigo-400 block">Statement detail</span>
                 <strong className="text-xs text-slate-200">ID: #{selectedStub.id.substring(0, 12)}</strong>

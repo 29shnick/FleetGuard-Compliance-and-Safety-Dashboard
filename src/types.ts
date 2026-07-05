@@ -27,6 +27,10 @@ export interface Vehicle {
   inspectionExpiry: string;
   overallStatus: ComplianceStatus;
   maintenanceStatus: 'Scheduled' | 'Overdue' | 'Up to Date';
+  mileage?: number;               // Current mileage of the heavy vehicle
+  lastInspectionMileage?: number; // Mileage at the last inspection
+  inspectionIntervalMiles?: number; // Target mileage interval (e.g. 10,000 miles)
+  averageMonthlyMiles?: number;    // Average mileage accumulated per month
 }
 
 export interface Alert {

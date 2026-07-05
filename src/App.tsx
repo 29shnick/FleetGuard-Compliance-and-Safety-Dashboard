@@ -147,6 +147,9 @@ export default function App() {
     ];
   });
 
+  // Forecasting simulation state
+  const [fleetPaceMultiplier, setFleetPaceMultiplier] = useState<number>(1.0);
+
   // Modals state
   const [editingDriver, setEditingDriver] = useState<Driver | null>(null);
   const [editingVehicle, setEditingVehicle] = useState<Vehicle | null>(null);
@@ -167,7 +170,11 @@ export default function App() {
     unitNumber: '',
     vin: '',
     inspectionExpiry: '',
-    maintenanceStatus: 'Up to Date' as any
+    maintenanceStatus: 'Up to Date' as any,
+    mileage: 50000,
+    lastInspectionMileage: 45000,
+    inspectionIntervalMiles: 10000,
+    averageMonthlyMiles: 3000
   });
 
   // --- Persist States to Local Storage ---
@@ -317,6 +324,65 @@ export default function App() {
     { name: 'Warning', value: drivers.filter(d => d.overallStatus === 'Warning').length, color: '#f59e0b' },
     { name: 'NON-COMPLIANT', value: drivers.filter(d => d.overallStatus === 'NON-COMPLIANT').length, color: '#f43f5e' },
   ], [drivers]);
+
+  // Calculations for Fleet Maintenance Mileage-Based Forecasting
+  const fleetForecastAnalysis = useMemo(() => {
+    let criticalCount = 0;
+    let warningCount = 0;
+    let compliantCount = 0;
+    let totalMonthlyMiles = 0;
+    let totalRemainingMiles = 0;
+    let validVehiclesCount = 0;
+
+    const items = vehicles.map(v => {
+      const current = v.mileage ?? 50000;
+      const last = v.lastInspectionMileage ?? 45000;
+      const limit = v.inspectionIntervalMiles ?? 10000;
+      const rate = (v.averageMonthlyMiles ?? 3000) * fleetPaceMultiplier;
+
+      const diff = current - last;
+      const remains = limit - diff;
+      const isOverdue = diff >= limit || remains <= 0;
+      
+      const monthsLeft = rate > 0 ? (isOverdue ? 0 : remains / rate) : 120; // 10 years fallback if idle
+
+      if (isOverdue) {
+        criticalCount++;
+      } else if (remains < 1500 || monthsLeft <= 1.0) {
+        warningCount++;
+      } else {
+        compliantCount++;
+      }
+
+      totalMonthlyMiles += rate;
+      totalRemainingMiles += isOverdue ? 0 : remains;
+      validVehiclesCount++;
+
+      return {
+        ...v,
+        currentMileage: current,
+        lastCheck: last,
+        interval: limit,
+        monthlyRate: rate,
+        traveledSinceCheck: diff,
+        remainingMiles: remains,
+        overdue: isOverdue,
+        monthsRemaining: monthsLeft,
+        risk: isOverdue ? 'critical' : (remains < 1500 || monthsLeft <= 1.0 ? 'warning' : 'compliant') as 'critical' | 'warning' | 'compliant'
+      };
+    });
+
+    const averageRemainingMiles = validVehiclesCount > 0 ? Math.round(totalRemainingMiles / validVehiclesCount) : 0;
+
+    return {
+      items,
+      criticalCount,
+      warningCount,
+      compliantCount,
+      totalMonthlyMiles,
+      averageRemainingMiles
+    };
+  }, [vehicles, fleetPaceMultiplier]);
 
   const filteredDrivers = useMemo(() => {
     return drivers.filter(d => 
@@ -659,20 +725,33 @@ export default function App() {
     const calculatedStatus: ComplianceStatus = getDaysDifference(newVehicleData.inspectionExpiry) < 0 ? 'NON-COMPLIANT' : 'Compliant';
 
     const newVeh: Vehicle = {
-      id: `V${vehicles.length + 1}`,
+      id: `V${Date.now()}`,
       unitNumber: newVehicleData.unitNumber,
       vin: newVehicleData.vin,
       inspectionExpiry: newVehicleData.inspectionExpiry,
       overallStatus: calculatedStatus,
-      maintenanceStatus: newVehicleData.maintenanceStatus
+      maintenanceStatus: newVehicleData.maintenanceStatus,
+      mileage: Number(newVehicleData.mileage) || 0,
+      lastInspectionMileage: Number(newVehicleData.lastInspectionMileage) || 0,
+      inspectionIntervalMiles: Number(newVehicleData.inspectionIntervalMiles) || 10000,
+      averageMonthlyMiles: Number(newVehicleData.averageMonthlyMiles) || 3000
     };
 
     setVehicles(prev => [...prev, newVeh]);
     setIsAddingVehicle(false);
-    setNewVehicleData({ unitNumber: '', vin: '', inspectionExpiry: '', maintenanceStatus: 'Up to Date' });
+    setNewVehicleData({
+      unitNumber: '',
+      vin: '',
+      inspectionExpiry: '',
+      maintenanceStatus: 'Up to Date',
+      mileage: 50000,
+      lastInspectionMileage: 45000,
+      inspectionIntervalMiles: 10000,
+      averageMonthlyMiles: 3000
+    });
     logSecurityAction(
       'Insert Fleet Equipment',
-      `Registered unit ${newVeh.unitNumber} (${newVeh.vin}) into database.`,
+      `Registered unit ${newVeh.unitNumber} (${newVeh.vin}) into database with mileage ${newVeh.mileage} miles.`,
       'data_edit'
     );
   };
@@ -1163,67 +1242,197 @@ export default function App() {
                 )}
               </div>
 
+              {/* predictive forecasting HUD */}
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-4 bg-slate-900 border border-slate-850 p-5 rounded-2xl text-white">
+                {/* Active Pace Simulator */}
+                <div className="md:col-span-2 bg-slate-950/60 p-4 rounded-xl border border-slate-800 flex flex-col justify-between">
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <TrendingUp className="text-blue-400 w-4 h-4 animate-pulse" />
+                      <span className="text-[10px] uppercase font-black tracking-widest text-blue-400 font-mono">Dynamic Workload Simulator</span>
+                    </div>
+                    <h4 className="text-xs font-bold text-slate-105 mt-2">Active Fleet Operations Pace</h4>
+                    <p className="text-[11px] text-slate-400 mt-1 leading-relaxed">
+                      Toggle active simulated workload pace scales to instantly recalculate all safety intervals and months remaining for vehicle inspections.
+                    </p>
+                  </div>
+                  
+                  <div className="flex flex-wrap gap-1 mt-3">
+                    {[
+                      { label: 'Idle / Local', val: 0.5 },
+                      { label: 'Normal Work', val: 1.0 },
+                      { label: 'Ramped Route', val: 1.5 },
+                      { label: 'Seasonal Rush', val: 2.0 },
+                      { label: 'Extreme Pace', val: 3.0 }
+                    ].map(opt => (
+                      <button
+                        key={opt.val}
+                        type="button"
+                        onClick={() => setFleetPaceMultiplier(opt.val)}
+                        className={`px-2 py-1 rounded text-[9px] font-bold uppercase transition-all ${
+                          fleetPaceMultiplier === opt.val
+                            ? 'bg-blue-600 text-white shadow-xs border-transparent'
+                            : 'bg-slate-800 text-slate-300 hover:bg-slate-750 border border-slate-700'
+                        }`}
+                      >
+                        {opt.val}x - {opt.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Metric 1 */}
+                <div className="bg-slate-950/60 p-4 rounded-xl border border-slate-800 flex flex-col justify-between">
+                  <div>
+                    <span className="text-[9px] uppercase font-bold text-rose-450 font-mono tracking-wider">Critical Risk Triggers</span>
+                    <h4 className="text-2xl font-black text-rose-500 mt-1">{fleetForecastAnalysis.criticalCount}</h4>
+                    <p className="text-[10px] text-slate-400 mt-1 leading-tight">
+                      Vehicles that have exceeded their recommended inspection limits.
+                    </p>
+                  </div>
+                  <div className="mt-2 pt-2 border-t border-slate-800/60 flex items-center justify-between text-[10px]">
+                    <span className="text-slate-500">Fleet status:</span>
+                    <span className={`font-mono font-bold text-[9px] ${fleetForecastAnalysis.criticalCount > 0 ? 'text-rose-400' : 'text-emerald-400'}`}>
+                      {fleetForecastAnalysis.criticalCount > 0 ? 'HIGH RISK' : 'SECURE'}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Metric 2 */}
+                <div className="bg-slate-950/60 p-4 rounded-xl border border-slate-800 flex flex-col justify-between">
+                  <div>
+                    <span className="text-[9px] uppercase font-bold text-amber-450 font-mono tracking-wider">Upcoming Checkups</span>
+                    <h4 className="text-2xl font-black text-amber-500 mt-1">{fleetForecastAnalysis.warningCount}</h4>
+                    <p className="text-[10px] text-slate-400 mt-1 leading-tight">
+                      Vehicles projected to cross mileage thresholds within the next 30 days.
+                    </p>
+                  </div>
+                  <div className="mt-2 pt-2 border-t border-slate-800/60 flex items-center justify-between text-[10px]">
+                    <span className="text-slate-500">Average remaining cap:</span>
+                    <span className="font-mono font-bold text-indigo-300 text-[9px]">
+                      {fleetForecastAnalysis.averageRemainingMiles.toLocaleString()} mi
+                    </span>
+                  </div>
+                </div>
+              </div>
+
               {/* Vehicle table list */}
               <div className="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden">
                 <div className="overflow-x-auto">
-                  <table className="w-full text-left border-collapse min-w-[800px] text-xs">
+                  <table className="w-full text-left border-collapse min-w-[900px] text-xs">
                     <thead>
                       <tr className="bg-slate-50 border-b border-slate-200">
                         <th className="px-6 py-4 font-bold text-slate-400 uppercase tracking-widest text-[10px]">Equipment Unit #</th>
-                        <th className="px-6 py-4 font-bold text-slate-400 uppercase tracking-widest text-[10px]">VIN Hash</th>
-                        <th className="px-6 py-4 font-bold text-slate-400 uppercase tracking-widest text-[10px]">Inspection Expiration</th>
-                        <th className="px-6 py-4 font-bold text-slate-400 uppercase tracking-widest text-[10px]">Scheduler State</th>
-                        <th className="px-6 py-4 font-bold text-slate-400 uppercase tracking-widest text-[10px]">Status</th>
+                        <th className="px-6 py-4 font-bold text-slate-400 uppercase tracking-widest text-[10px]">Current Odometer</th>
+                        <th className="px-6 py-4 font-bold text-slate-400 uppercase tracking-widest text-[10px]">Distance & Safety Check Interval</th>
+                        <th className="px-6 py-4 font-bold text-slate-400 uppercase tracking-widest text-[10px]">Time Horizon Forecast</th>
+                        <th className="px-6 py-4 font-bold text-slate-400 uppercase tracking-widest text-[10px]">State/Cal Status</th>
                         <th className="px-6 py-4 font-bold text-slate-400 uppercase tracking-widest text-[10px] text-right">Actions</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100">
-                      {vehicles.map((v) => (
-                        <tr key={v.id} className="hover:bg-slate-50/50 transition-colors">
-                          <td className="px-6 py-4 font-extrabold text-slate-850 text-sm">
-                            {v.unitNumber}
-                          </td>
-                          <td className="px-6 py-4 font-mono text-slate-400">
-                            {v.vin}
-                          </td>
-                          <td className="px-6 py-4 font-mono">
-                            {v.inspectionExpiry}
-                          </td>
-                          <td className="px-6 py-4">
-                            <span className={`px-2.5 py-0.5 rounded text-[10px] font-bold uppercase ${
-                              v.maintenanceStatus === 'Up to Date' ? 'bg-emerald-100 text-emerald-800' :
-                              v.maintenanceStatus === 'Scheduled' ? 'bg-amber-100 text-amber-800 font-mono' :
-                              'bg-rose-100 text-rose-800'
-                            }`}>
-                              {v.maintenanceStatus}
-                            </span>
-                          </td>
-                          <td className="px-6 py-4">
-                            <StatusBadge status={v.overallStatus} />
-                          </td>
-                          <td className="px-6 py-4 text-right">
-                            <div className="inline-flex gap-2.5">
-                              <button 
-                                onClick={() => setEditingVehicle(v)}
-                                className="p-1 text-slate-500 hover:text-slate-850 hover:bg-slate-100 transition-colors rounded"
-                                title="Update maintenance or inspection stats"
-                              >
-                                <Edit2 size={13} />
-                              </button>
-                              
-                              {currentUser.role === 'Administrator' && (
-                                <button 
-                                  onClick={() => handleDeleteVehicle(v.id)}
-                                  className="p-1 text-rose-500 hover:text-rose-700 hover:bg-rose-50 transition-colors rounded"
-                                  title="Unregister equipment permanently"
-                                >
-                                  <Trash2 size={13} />
-                                </button>
+                      {fleetForecastAnalysis.items.map((v) => {
+                        const progressPercent = Math.min(100, Math.max(0, (v.traveledSinceCheck / v.interval) * 100));
+                        return (
+                          <tr key={v.id} className="hover:bg-slate-50/50 transition-colors">
+                            <td className="px-6 py-4">
+                              <div className="font-extrabold text-slate-850 text-sm">{v.unitNumber}</div>
+                              <div className="text-[10px] text-slate-400 font-mono mt-0.5">{v.vin}</div>
+                            </td>
+                            <td className="px-6 py-4">
+                              <div className="font-mono font-bold text-slate-800">
+                                {(v.currentMileage || 0).toLocaleString()} mi
+                              </div>
+                              <div className="text-[10px] text-slate-500 mt-0.5 flex items-center gap-1">
+                                <TrendingUp size={11} className="text-blue-500 text-slate-400" />
+                                <span>{(v.monthlyRate || 0).toLocaleString()} mi/month</span>
+                              </div>
+                            </td>
+                            <td className="px-6 py-4 min-w-[200px]">
+                              <div className="flex justify-between items-center text-[9px] font-bold text-slate-500 mb-1">
+                                <span>{v.traveledSinceCheck.toLocaleString()} mi run</span>
+                                <span>limit: {v.interval.toLocaleString()} mi</span>
+                              </div>
+                              <div className="w-full bg-slate-100 rounded-full h-1.5 overflow-hidden">
+                                <div 
+                                  className={`h-full rounded-full transition-all duration-500 ${
+                                    v.risk === 'critical' ? 'bg-rose-500' :
+                                    v.risk === 'warning' ? 'bg-amber-400' :
+                                    'bg-emerald-500'
+                                  }`} 
+                                  style={{ width: `${progressPercent}%` }}
+                                />
+                              </div>
+                              <div className="text-[10px] mt-1 font-semibold">
+                                {v.overdue ? (
+                                  <span className="text-rose-600 font-extrabold text-[9px] uppercase tracking-wider">OVERDUE BY {Math.abs(v.remainingMiles).toLocaleString()} mi</span>
+                                ) : (
+                                  <span className="text-slate-500 text-[9px] uppercase tracking-wider">{v.remainingMiles.toLocaleString()} mi left</span>
+                                )}
+                              </div>
+                            </td>
+                            <td className="px-6 py-4 font-mono">
+                              {v.overdue ? (
+                                <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-rose-50 text-rose-700 font-extrabold text-[9px] border border-rose-100 uppercase animate-pulse">
+                                  ⚠️ Over Limit
+                                </span>
+                              ) : (
+                                <div>
+                                  <div className={`font-extrabold text-[11px] ${v.risk === 'warning' ? 'text-amber-600' : 'text-slate-750'}`}>
+                                    In ~{v.monthsRemaining.toFixed(1)} months
+                                  </div>
+                                  <div className="text-[9px] text-slate-400 mt-0.5">
+                                    Est. Service: {
+                                      (() => {
+                                        try {
+                                          const estDate = new Date();
+                                          estDate.setMonth(estDate.getMonth() + v.monthsRemaining);
+                                          return estDate.toLocaleDateString('en-US', { year: '2-digit', month: 'short' });
+                                        } catch {
+                                          return 'N/A';
+                                        }
+                                      })()
+                                    }
+                                  </div>
+                                </div>
                               )}
-                            </div>
-                          </td>
-                        </tr>
-                      ))}
+                            </td>
+                            <td className="px-6 py-4">
+                              <div className="font-mono text-slate-700 text-[10px]">{v.inspectionExpiry}</div>
+                              <div className="mt-1">
+                                <span className={`px-2 py-0.5 rounded text-[8px] font-black uppercase tracking-wider ${
+                                  v.maintenanceStatus === 'Up to Date' ? 'bg-emerald-100 text-emerald-800' :
+                                  v.maintenanceStatus === 'Scheduled' ? 'bg-amber-100 text-amber-800 font-mono' :
+                                  'bg-rose-100 text-rose-800'
+                                }`}>
+                                  {v.maintenanceStatus}
+                                </span>
+                              </div>
+                            </td>
+                            <td className="px-6 py-4 text-right">
+                              <div className="inline-flex gap-2">
+                                <button 
+                                  onClick={() => setEditingVehicle(v)}
+                                  className="p-1 text-slate-500 hover:text-slate-850 hover:bg-slate-100 transition-colors rounded"
+                                  title="Update maintenance or inspection stats"
+                                >
+                                  <Edit2 size={13} />
+                                </button>
+                                
+                                {currentUser.role === 'Administrator' && (
+                                  <button 
+                                    onClick={() => handleDeleteVehicle(v.id)}
+                                    className="p-1 text-rose-500 hover:text-rose-700 hover:bg-rose-50 transition-colors rounded"
+                                    title="Unregister equipment permanently"
+                                  >
+                                    <Trash2 size={13} />
+                                  </button>
+                                )}
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      })}
                     </tbody>
                   </table>
                 </div>
@@ -1415,6 +1624,48 @@ export default function App() {
                 </div>
               </div>
 
+              <div className="border-t border-slate-100 pt-3">
+                <span className="text-[10px] text-blue-600 font-extrabold uppercase tracking-wider block mb-2">Predictive Mileage Parameters</span>
+                
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block font-bold text-slate-650 mb-0.5">Current Odometer (Hl.)</label>
+                    <input 
+                      type="number" min="0" required placeholder="e.g. 120000"
+                      className="bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1.5 w-full outline-none focus:ring-1 focus:ring-slate-800 font-mono"
+                      value={newVehicleData.mileage} onChange={e => setNewVehicleData({...newVehicleData, mileage: Number(e.target.value) || 0})}
+                    />
+                  </div>
+                  <div>
+                    <label className="block font-bold text-slate-650 mb-0.5">Last Check Odometer</label>
+                    <input 
+                      type="number" min="0" required placeholder="e.g. 110000"
+                      className="bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1.5 w-full outline-none focus:ring-1 focus:ring-slate-800 font-mono"
+                      value={newVehicleData.lastInspectionMileage} onChange={e => setNewVehicleData({...newVehicleData, lastInspectionMileage: Number(e.target.value) || 0})}
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3 mt-2">
+                  <div>
+                    <label className="block font-bold text-slate-650 mb-0.5">Interval Limit (mi.)</label>
+                    <input 
+                      type="number" min="100" required placeholder="e.g. 10000"
+                      className="bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1.5 w-full outline-none focus:ring-1 focus:ring-slate-800 font-mono"
+                      value={newVehicleData.inspectionIntervalMiles} onChange={e => setNewVehicleData({...newVehicleData, inspectionIntervalMiles: Number(e.target.value) || 0})}
+                    />
+                  </div>
+                  <div>
+                    <label className="block font-bold text-slate-650 mb-0.5">Est. Monthly Miles</label>
+                    <input 
+                      type="number" min="0" required placeholder="e.g. 3500"
+                      className="bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1.5 w-full outline-none focus:ring-1 focus:ring-slate-800 font-mono"
+                      value={newVehicleData.averageMonthlyMiles} onChange={e => setNewVehicleData({...newVehicleData, averageMonthlyMiles: Number(e.target.value) || 0})}
+                    />
+                  </div>
+                </div>
+              </div>
+
               <div className="flex gap-2 pt-4 border-t border-slate-100">
                 <button 
                   type="submit" 
@@ -1579,6 +1830,48 @@ export default function App() {
                     <option value="Scheduled">Scheduled</option>
                     <option value="Overdue">Overdue</option>
                   </select>
+                </div>
+              </div>
+
+              <div className="border-t border-slate-100 pt-3">
+                <span className="text-[10px] text-blue-600 font-extrabold uppercase tracking-wider block mb-2">Predictive Mileage Parameters</span>
+                
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block font-bold text-slate-650 mb-0.5">Current Odometer (Hl.)</label>
+                    <input 
+                      type="number" min="0" required placeholder="e.g. 120000"
+                      className="bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1.5 w-full outline-none focus:ring-1 focus:ring-slate-800 font-mono"
+                      value={editingVehicle.mileage ?? 0} onChange={e => setEditingVehicle({...editingVehicle, mileage: Number(e.target.value) || 0})}
+                    />
+                  </div>
+                  <div>
+                    <label className="block font-bold text-slate-650 mb-0.5">Last Check Odometer</label>
+                    <input 
+                      type="number" min="0" required placeholder="e.g. 110000"
+                      className="bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1.5 w-full outline-none focus:ring-1 focus:ring-slate-800 font-mono"
+                      value={editingVehicle.lastInspectionMileage ?? 0} onChange={e => setEditingVehicle({...editingVehicle, lastInspectionMileage: Number(e.target.value) || 0})}
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3 mt-2">
+                  <div>
+                    <label className="block font-bold text-slate-650 mb-0.5">Interval Limit (mi.)</label>
+                    <input 
+                      type="number" min="100" required placeholder="e.g. 10000"
+                      className="bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1.5 w-full outline-none focus:ring-1 focus:ring-slate-800 font-mono"
+                      value={editingVehicle.inspectionIntervalMiles ?? 10000} onChange={e => setEditingVehicle({...editingVehicle, inspectionIntervalMiles: Number(e.target.value) || 0})}
+                    />
+                  </div>
+                  <div>
+                    <label className="block font-bold text-slate-650 mb-0.5">Est. Monthly Miles</label>
+                    <input 
+                      type="number" min="0" required placeholder="e.g. 3500"
+                      className="bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1.5 w-full outline-none focus:ring-1 focus:ring-slate-800 font-mono"
+                      value={editingVehicle.averageMonthlyMiles ?? 3000} onChange={e => setEditingVehicle({...editingVehicle, averageMonthlyMiles: Number(e.target.value) || 0})}
+                    />
+                  </div>
                 </div>
               </div>
 

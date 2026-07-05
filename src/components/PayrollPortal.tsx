@@ -216,10 +216,10 @@ export default function PayrollPortal({
         {/* Detailed Invoice / Pay Stub Review Column */}
         <div className="lg:col-span-5">
           {selectedStub ? (
-            <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden divide-y divide-slate-100 print:border-none print:shadow-none">
+            <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden divide-y divide-slate-100 print:border-none print:shadow-none printable-invoice">
               
               {/* stub visual preview metadata */}
-              <div className="bg-slate-900 text-white p-5 space-y-2">
+              <div className="bg-slate-900 text-white p-5 space-y-2 print:hidden">
                 <div className="flex justify-between items-start">
                   <div>
                     <span className="text-[10px] text-indigo-400 uppercase font-black tracking-widest font-mono">DOT Settlement Advice</span>

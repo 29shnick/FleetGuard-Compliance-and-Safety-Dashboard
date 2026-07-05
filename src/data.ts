@@ -25,16 +25,16 @@ export const MOCK_DRIVERS: Driver[] = [
 ];
 
 export const MOCK_VEHICLES: Vehicle[] = [
-  { id: 'V1', unitNumber: 'TRK-101', vin: '1FVAC99283X...', inspectionExpiry: '2026-08-20', overallStatus: getStatus('2026-08-20'), maintenanceStatus: 'Up to Date' },
-  { id: 'V2', unitNumber: 'TRK-202', vin: '1FVAC11204Y...', inspectionExpiry: '2026-04-05', overallStatus: getStatus('2026-04-05'), maintenanceStatus: 'Scheduled' },
-  { id: 'V3', unitNumber: 'TRK-303', vin: '1FVAC44592Z...', inspectionExpiry: '2026-03-15', overallStatus: getStatus('2026-03-15'), maintenanceStatus: 'Overdue' },
-  { id: 'V4', unitNumber: 'TRK-404', vin: '1FVAC88321A...', inspectionExpiry: '2026-06-01', overallStatus: getStatus('2026-06-01'), maintenanceStatus: 'Up to Date' },
-  { id: 'V5', unitNumber: 'TRK-505', vin: '1FVAC55678B...', inspectionExpiry: '2026-04-25', overallStatus: getStatus('2026-04-25'), maintenanceStatus: 'Scheduled' },
-  { id: 'V6', unitNumber: 'TRK-606', vin: '1FVAC66789C...', inspectionExpiry: '2026-03-01', overallStatus: getStatus('2026-03-01'), maintenanceStatus: 'Overdue' },
-  { id: 'V7', unitNumber: 'TRK-707', vin: '1FVAC77890D...', inspectionExpiry: '2026-08-15', overallStatus: getStatus('2026-08-15'), maintenanceStatus: 'Up to Date' },
-  { id: 'V8', unitNumber: 'TRK-808', vin: '1FVAC88901E...', inspectionExpiry: '2026-04-15', overallStatus: getStatus('2026-04-15'), maintenanceStatus: 'Scheduled' },
-  { id: 'V9', unitNumber: 'TRK-909', vin: '1FVAC99012F...', inspectionExpiry: '2026-10-10', overallStatus: getStatus('2026-10-10'), maintenanceStatus: 'Up to Date' },
-  { id: 'V10', unitNumber: 'TRK-1010', vin: '1FVAC00123G...', inspectionExpiry: '2026-03-25', overallStatus: getStatus('2026-03-25'), maintenanceStatus: 'Overdue' },
+  { id: 'V1', unitNumber: 'TRK-101', vin: '1FVAC99283X...', inspectionExpiry: '2026-08-20', overallStatus: getStatus('2026-08-20'), maintenanceStatus: 'Up to Date', mileage: 65200, lastInspectionMileage: 60100, inspectionIntervalMiles: 10000, averageMonthlyMiles: 4000 },
+  { id: 'V2', unitNumber: 'TRK-202', vin: '1FVAC11204Y...', inspectionExpiry: '2026-04-05', overallStatus: getStatus('2026-04-05'), maintenanceStatus: 'Scheduled', mileage: 124800, lastInspectionMileage: 115000, inspectionIntervalMiles: 10000, averageMonthlyMiles: 4800 },
+  { id: 'V3', unitNumber: 'TRK-303', vin: '1FVAC44592Z...', inspectionExpiry: '2026-03-15', overallStatus: getStatus('2026-03-15'), maintenanceStatus: 'Overdue', mileage: 245000, lastInspectionMileage: 232000, inspectionIntervalMiles: 12000, averageMonthlyMiles: 5000 },
+  { id: 'V4', unitNumber: 'TRK-404', vin: '1FVAC88321A...', inspectionExpiry: '2026-06-01', overallStatus: getStatus('2026-06-01'), maintenanceStatus: 'Up to Date', mileage: 82000, lastInspectionMileage: 74000, inspectionIntervalMiles: 10000, averageMonthlyMiles: 3200 },
+  { id: 'V5', unitNumber: 'TRK-505', vin: '1FVAC55678B...', inspectionExpiry: '2026-04-25', overallStatus: getStatus('2026-04-25'), maintenanceStatus: 'Scheduled', mileage: 147200, lastInspectionMileage: 138000, inspectionIntervalMiles: 10000, averageMonthlyMiles: 4200 },
+  { id: 'V6', unitNumber: 'TRK-606', vin: '1FVAC66789C...', inspectionExpiry: '2026-03-01', overallStatus: getStatus('2026-03-01'), maintenanceStatus: 'Overdue', mileage: 198000, lastInspectionMileage: 185000, inspectionIntervalMiles: 10000, averageMonthlyMiles: 5100 },
+  { id: 'V7', unitNumber: 'TRK-707', vin: '1FVAC77890D...', inspectionExpiry: '2026-08-15', overallStatus: getStatus('2026-08-15'), maintenanceStatus: 'Up to Date', mileage: 44000, lastInspectionMileage: 40000, inspectionIntervalMiles: 10000, averageMonthlyMiles: 3000 },
+  { id: 'V8', unitNumber: 'TRK-808', vin: '1FVAC88901E...', inspectionExpiry: '2026-04-15', overallStatus: getStatus('2026-04-15'), maintenanceStatus: 'Scheduled', mileage: 111100, lastInspectionMileage: 102000, inspectionIntervalMiles: 10000, averageMonthlyMiles: 4500 },
+  { id: 'V9', unitNumber: 'TRK-909', vin: '1FVAC99012F...', inspectionExpiry: '2026-10-10', overallStatus: getStatus('2026-10-10'), maintenanceStatus: 'Up to Date', mileage: 98100, lastInspectionMileage: 95000, inspectionIntervalMiles: 10000, averageMonthlyMiles: 2900 },
+  { id: 'V10', unitNumber: 'TRK-1010', vin: '1FVAC00123G...', inspectionExpiry: '2026-03-25', overallStatus: getStatus('2026-03-25'), maintenanceStatus: 'Overdue', mileage: 293400, lastInspectionMileage: 280000, inspectionIntervalMiles: 12000, averageMonthlyMiles: 5500 },
 ];
 
 export const MOCK_ALERTS: Alert[] = [
