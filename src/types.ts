@@ -78,6 +78,20 @@ export interface DispatchLoad {
   weightLbs: number;
   submittedAt: string;
   notes?: string;
+  rateConFile?: { name: string; size: number; dataUrl?: string };
+  bolFile?: { name: string; size: number; dataUrl?: string };
+  invoiceDetails?: {
+    invoiceNumber: string;
+    billingDate: string;
+    dueDate: string;
+    shipperName: string;
+    consigneeName: string;
+    taxId: string;
+    terms: string;
+    totalDue: number;
+    subtotal: number;
+    fees: number;
+  };
 }
 
 export interface PayStub {

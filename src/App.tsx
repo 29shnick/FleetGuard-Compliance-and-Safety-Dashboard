@@ -612,6 +612,25 @@ export default function App() {
     }
   };
 
+  const handleUpdateLoadDocs = (
+    id: string,
+    rateConFile?: { name: string; size: number; dataUrl?: string },
+    bolFile?: { name: string; size: number; dataUrl?: string },
+    invoiceDetails?: DispatchLoad['invoiceDetails']
+  ) => {
+    setLoads(prev => prev.map(l => {
+      if (l.id === id) {
+        return {
+          ...l,
+          rateConFile: rateConFile !== undefined ? rateConFile : l.rateConFile,
+          bolFile: bolFile !== undefined ? bolFile : l.bolFile,
+          invoiceDetails: invoiceDetails !== undefined ? invoiceDetails : l.invoiceDetails
+        };
+      }
+      return l;
+    }));
+  };
+
   const handleUpdateStubStatus = (id: string, status: PayStub['status']) => {
     setPayStubs(prev => prev.map(ps => ps.id === id ? { ...ps, status } : ps));
     logSecurityAction(
@@ -1485,6 +1504,7 @@ export default function App() {
               onAddLoad={handleCreateLoad} 
               onUpdateLoadStatus={handleUpdateLoadStatus} 
               onDeleteLoad={handleDeleteLoad} 
+              onUpdateLoadDocs={handleUpdateLoadDocs}
             />
           )}
 
