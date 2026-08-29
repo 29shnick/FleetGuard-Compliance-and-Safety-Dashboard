@@ -32,14 +32,17 @@ import {
   Cell, 
   ResponsiveContainer 
 } from 'recharts';
-import { MOCK_DRIVERS, MOCK_VEHICLES } from './data';
-import { Driver, Vehicle, ComplianceStatus, UserSession, AuditLogEntry, RenewalRequest, DispatchLoad, PayStub } from './types';
+import { MOCK_DRIVERS, MOCK_VEHICLES, DEFAULT_COMPANY_INFO } from './data';
+import { Driver, Vehicle, ComplianceStatus, UserSession, AuditLogEntry, RenewalRequest, DispatchLoad, PayStub, TaxClassification, CompanyInfo } from './types';
 import RbacPanel, { SIMULATED_USERS } from './components/RbacPanel';
 import DriverPortal from './components/DriverPortal';
 import ActionCenter from './components/ActionCenter';
 import AuditLogs from './components/AuditLogs';
 import DispatchPortal from './components/DispatchPortal';
 import PayrollPortal from './components/PayrollPortal';
+import DriverProfileModal from './components/DriverProfileModal';
+import CompanySettingsModal from './components/CompanySettingsModal';
+import { Building2 } from 'lucide-react';
 
 // Helper for days difference
 const getDaysDifference = (expiryStr: string) => {
@@ -147,6 +150,19 @@ export default function App() {
     ];
   });
 
+  // Company Details State
+  const [companyInfo, setCompanyInfo] = useState<CompanyInfo>(() => {
+    const saved = localStorage.getItem('fg_company_info');
+    if (saved) {
+      try {
+        return JSON.parse(saved);
+      } catch (e) {
+        // fallback
+      }
+    }
+    return DEFAULT_COMPANY_INFO;
+  });
+
   // Forecasting simulation state
   const [fleetPaceMultiplier, setFleetPaceMultiplier] = useState<number>(1.0);
 
@@ -155,6 +171,7 @@ export default function App() {
   const [editingVehicle, setEditingVehicle] = useState<Vehicle | null>(null);
   const [isAddingDriver, setIsAddingDriver] = useState(false);
   const [isAddingVehicle, setIsAddingVehicle] = useState(false);
+  const [isEditingCompany, setIsEditingCompany] = useState(false);
 
   // New Driver Form State
   const [newDriverData, setNewDriverData] = useState({
@@ -162,7 +179,11 @@ export default function App() {
     cdlExpiry: '',
     medCertExpiry: '',
     truckId: '',
-    criticalViolations: 0
+    criticalViolations: 0,
+    taxClassification: 'W2' as TaxClassification,
+    phone: '',
+    email: '',
+    ssnEin: ''
   });
 
   // New Vehicle Form State
@@ -205,6 +226,10 @@ export default function App() {
   useEffect(() => {
     localStorage.setItem('fg_paystubs', JSON.stringify(payStubs));
   }, [payStubs]);
+
+  useEffect(() => {
+    localStorage.setItem('fg_company_info', JSON.stringify(companyInfo));
+  }, [companyInfo]);
 
   // Adjust active tab based on active user role
   useEffect(() => {
@@ -647,23 +672,43 @@ export default function App() {
       alert('🔒 Authorization Denied: Add driver is restricted to Safety Manager & CEO / Administrator roles.');
       return;
     }
+    const newId = `D${drivers.length + 1}`;
     const newDriver: Driver = {
-      id: `D${drivers.length + 1}`,
+      id: newId,
       name: newDriverData.name,
       cdlExpiry: newDriverData.cdlExpiry,
       medCertExpiry: newDriverData.medCertExpiry,
       truckId: newDriverData.truckId || 'None',
       overallStatus: calcStatus(newDriverData.cdlExpiry, newDriverData.medCertExpiry),
       criticalViolations: Number(newDriverData.criticalViolations),
-      isHighRisk: Number(newDriverData.criticalViolations) > 2
+      isHighRisk: Number(newDriverData.criticalViolations) > 2,
+      taxClassification: newDriverData.taxClassification,
+      profileInfo: {
+        phone: newDriverData.phone || '(312) 555-0192',
+        email: newDriverData.email || `${newDriverData.name.toLowerCase().replace(' ', '.')}@fastgatelogistics.com`,
+        ssnEin: newDriverData.ssnEin || '331-XX-9812',
+        hireDate: new Date().toISOString().split('T')[0],
+        operatingStatus: 'Active',
+        payRatePerMile: newDriverData.taxClassification === '1099-NEC' ? 0.82 : 0.70
+      }
     };
 
     setDrivers(prev => [...prev, newDriver]);
     setIsAddingDriver(false);
-    setNewDriverData({ name: '', cdlExpiry: '', medCertExpiry: '', truckId: '', criticalViolations: 0 });
+    setNewDriverData({
+      name: '',
+      cdlExpiry: '',
+      medCertExpiry: '',
+      truckId: '',
+      criticalViolations: 0,
+      taxClassification: 'W2',
+      phone: '',
+      email: '',
+      ssnEin: ''
+    });
     logSecurityAction(
       'Insert Driver Profile',
-      `Administrator created profile ID ${newDriver.id} for ${newDriver.name}.`,
+      `Administrator created profile ID ${newDriver.id} for ${newDriver.name} with ${newDriver.taxClassification} tax status.`,
       'data_edit'
     );
   };
@@ -953,6 +998,16 @@ export default function App() {
                 >
                   <Fingerprint size={14} /> Audit Trail logs
                 </button>
+                <button 
+                  onClick={() => { setIsEditingCompany(true); setIsMobileMenuOpen(false); }} 
+                  className="w-full flex items-center justify-between px-3.5 py-2.5 rounded-lg transition-colors text-xs font-bold uppercase tracking-wider bg-slate-800/80 hover:bg-slate-800 text-indigo-300 border border-slate-700/60 mt-2"
+                  title="Configure company legal details, USDOT#, FEIN tax ID, address, and bank accounts"
+                >
+                  <span className="flex items-center gap-3">
+                    <Building2 size={14} className="text-indigo-400" /> Company Profile
+                  </span>
+                  <span className="text-[9px] bg-indigo-950 text-indigo-300 border border-indigo-800 px-1.5 py-0.5 rounded font-mono font-bold">SETUP</span>
+                </button>
               </>
             ) : (
               <>
@@ -1171,6 +1226,7 @@ export default function App() {
                     <thead>
                       <tr className="bg-slate-50 border-b border-slate-200">
                         <th className="px-6 py-4 font-bold text-slate-400 uppercase tracking-widest text-[10px]">Driver ID & Name</th>
+                        <th className="px-6 py-4 font-bold text-slate-400 uppercase tracking-widest text-[10px]">Tax Setup</th>
                         <th className="px-6 py-4 font-bold text-slate-400 uppercase tracking-widest text-[10px]">Assigned Equipment</th>
                         <th className="px-6 py-4 font-bold text-slate-400 uppercase tracking-widest text-[10px]">Critical CDL Date</th>
                         <th className="px-6 py-4 font-bold text-slate-400 uppercase tracking-widest text-[10px]">Critical Med Exam Date</th>
@@ -1183,8 +1239,24 @@ export default function App() {
                       {drivers.map((driver) => (
                         <tr key={driver.id} className="hover:bg-slate-50/50 transition-colors">
                           <td className="px-6 py-4">
-                            <div className="font-extrabold text-slate-900 text-sm">{driver.name}</div>
-                            <div className="text-[10px] text-slate-400 font-mono mt-0.5 uppercase">SYSTEM-ID: {driver.id}</div>
+                            <div className="font-extrabold text-slate-900 text-sm flex items-center gap-2">
+                              {driver.name}
+                            </div>
+                            <div className="text-[10px] text-slate-400 font-mono mt-0.5 uppercase">SYSTEM-ID: {driver.id} • {driver.profileInfo?.phone || '(312) 555-0192'}</div>
+                          </td>
+                          <td className="px-6 py-4">
+                            <button
+                              type="button"
+                              onClick={() => setEditingDriver(driver)}
+                              className={`px-2.5 py-1 rounded-lg text-[10px] font-black uppercase tracking-wider border transition-all ${
+                                driver.taxClassification === 'W2'
+                                  ? 'bg-indigo-50 text-indigo-800 border-indigo-200/80 hover:bg-indigo-100'
+                                  : 'bg-amber-50 text-amber-900 border-amber-200/80 hover:bg-amber-100'
+                              }`}
+                              title="Click to manage full profile and tax classification"
+                            >
+                              {driver.taxClassification || '1099-NEC'}
+                            </button>
                           </td>
                           <td className="px-6 py-4 font-mono font-bold text-slate-700">
                             {driver.truckId}
@@ -1501,6 +1573,7 @@ export default function App() {
             <DispatchPortal 
               drivers={drivers} 
               loads={loads} 
+              companyInfo={companyInfo}
               onAddLoad={handleCreateLoad} 
               onUpdateLoadStatus={handleUpdateLoadStatus} 
               onDeleteLoad={handleDeleteLoad} 
@@ -1515,6 +1588,7 @@ export default function App() {
               loads={loads}
               drivers={drivers}
               currentUserRole={currentUser.role}
+              companyInfo={companyInfo}
               onUpdateStubStatus={handleUpdateStubStatus}
             />
           )}
@@ -1525,17 +1599,90 @@ export default function App() {
       {/* --- ADD DRIVER MODAL (ADMIN ONLY) --- */}
       {isAddingDriver && (
         <div className="fixed inset-0 bg-slate-950/40 z-50 flex items-center justify-center p-4 backdrop-blur-xs">
-          <div className="bg-white rounded-2xl border border-slate-200 outline-none p-6 max-w-md w-full shadow-2xl animate-fade-in relative">
-            <h3 className="text-base font-black text-slate-900 tracking-tight mb-4 uppercase">Insert New Operator Profile</h3>
+          <div className="bg-white rounded-2xl border border-slate-200 outline-none p-6 max-w-lg w-full shadow-2xl animate-fade-in relative">
+            <h3 className="text-base font-black text-slate-900 tracking-tight mb-1 uppercase">Insert New Operator Profile</h3>
+            <p className="text-[10px] text-slate-400 font-medium mb-4">Register new driver with complete contact, CDL, and IRS tax status.</p>
             
             <form onSubmit={handleAddDriver} className="space-y-4 text-xs">
               <div>
-                <label className="block font-bold text-slate-700 mb-1">Full Operator Name</label>
+                <label className="block font-bold text-slate-700 mb-1">Full Legal Name</label>
                 <input 
                   type="text" required placeholder="e.g. Sandra Bullock"
                   className="bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 w-full outline-none focus:ring-1 focus:ring-slate-800"
                   value={newDriverData.name} onChange={e => setNewDriverData({...newDriverData, name: e.target.value})}
                 />
+              </div>
+
+              {/* Tax Classification Selection */}
+              <div>
+                <label className="block font-bold text-slate-700 mb-1">Tax & Payment Classification</label>
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setNewDriverData({ ...newDriverData, taxClassification: 'W2' })}
+                    className={`p-2.5 rounded-lg border text-left transition-all ${
+                      newDriverData.taxClassification === 'W2'
+                        ? 'border-indigo-600 bg-indigo-50/80 text-indigo-950 font-bold'
+                        : 'border-slate-200 bg-slate-50 text-slate-600 hover:bg-slate-100'
+                    }`}
+                  >
+                    <span className="block text-[11px] font-black uppercase">W-2 Employee</span>
+                    <span className="block text-[9px] text-slate-500">Statutory payroll tax withholding</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setNewDriverData({ ...newDriverData, taxClassification: '1099-NEC' })}
+                    className={`p-2.5 rounded-lg border text-left transition-all ${
+                      newDriverData.taxClassification === '1099-NEC'
+                        ? 'border-amber-600 bg-amber-50/80 text-amber-950 font-bold'
+                        : 'border-slate-200 bg-slate-50 text-slate-600 hover:bg-slate-100'
+                    }`}
+                  >
+                    <span className="block text-[11px] font-black uppercase">1099-NEC Contractor</span>
+                    <span className="block text-[9px] text-slate-500">Independent owner-operator</span>
+                  </button>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block font-bold text-slate-700 mb-1">Phone Number</label>
+                  <input 
+                    type="text" placeholder="(312) 555-0192"
+                    className="bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 w-full outline-none focus:ring-1 focus:ring-slate-800 font-mono"
+                    value={newDriverData.phone} onChange={e => setNewDriverData({...newDriverData, phone: e.target.value})}
+                  />
+                </div>
+                <div>
+                  <label className="block font-bold text-slate-700 mb-1">Corporate Email</label>
+                  <input 
+                    type="email" placeholder="driver@fastgate.com"
+                    className="bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 w-full outline-none focus:ring-1 focus:ring-slate-800"
+                    value={newDriverData.email} onChange={e => setNewDriverData({...newDriverData, email: e.target.value})}
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block font-bold text-slate-700 mb-1">SSN or Tax ID (Masked)</label>
+                  <input 
+                    type="text" placeholder="331-XX-9812"
+                    className="bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 w-full outline-none focus:ring-1 focus:ring-slate-800 font-mono"
+                    value={newDriverData.ssnEin} onChange={e => setNewDriverData({...newDriverData, ssnEin: e.target.value})}
+                  />
+                </div>
+                <div>
+                  <label className="block font-bold text-slate-700 mb-1">Vehicle Assignment</label>
+                  <select 
+                    className="bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 w-full outline-none focus:ring-1 focus:ring-slate-800 font-bold text-slate-800"
+                    value={newDriverData.truckId} onChange={e => setNewDriverData({...newDriverData, truckId: e.target.value})}
+                  >
+                    <option value="">No Allocation</option>
+                    {vehicles.map(v => <option key={v.id} value={v.unitNumber}>{v.unitNumber}</option>)}
+                  </select>
+                </div>
               </div>
 
               <div className="grid grid-cols-2 gap-3">
@@ -1557,33 +1704,12 @@ export default function App() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block font-bold text-slate-700 mb-1">Vehicle Assignment</label>
-                  <select 
-                    className="bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 w-full outline-none focus:ring-1 focus:ring-slate-800"
-                    value={newDriverData.truckId} onChange={e => setNewDriverData({...newDriverData, truckId: e.target.value})}
-                  >
-                    <option value="">No Allocation</option>
-                    {vehicles.map(v => <option key={v.id} value={v.unitNumber}>{v.unitNumber}</option>)}
-                  </select>
-                </div>
-                <div>
-                  <label className="block font-bold text-slate-700 mb-1">Prior Citations Count</label>
-                  <input 
-                    type="number" min="0" required
-                    className="bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 w-full outline-none focus:ring-1 focus:ring-slate-800 font-mono"
-                    value={newDriverData.criticalViolations} onChange={e => setNewDriverData({...newDriverData, criticalViolations: Number(e.target.value)})}
-                  />
-                </div>
-              </div>
-
               <div className="flex gap-2 pt-4 border-t border-slate-100">
                 <button 
                   type="submit" 
-                  className="bg-blue-600 hover:bg-blue-500 font-bold uppercase tracking-wider text-white py-2 px-4 rounded-lg flex-1"
+                  className="bg-slate-900 hover:bg-slate-800 font-bold uppercase tracking-wider text-white py-2 px-4 rounded-lg flex-1 shadow-xs"
                 >
-                  Create
+                  Create Profile
                 </button>
                 <button 
                   type="button" onClick={() => setIsAddingDriver(false)}
@@ -1703,6 +1829,16 @@ export default function App() {
             </form>
           </div>
         </div>
+      )}
+
+      {/* --- COMPANY SETTINGS MODAL --- */}
+      {isEditingCompany && (
+        <CompanySettingsModal
+          companyInfo={companyInfo}
+          currentUserRole={currentUser.role}
+          onClose={() => setIsEditingCompany(false)}
+          onSave={(updated) => setCompanyInfo(updated)}
+        />
       )}
 
       {/* --- EDIT DRIVER MODAL (ROLE SENSITIVE CONTROLS) --- */}

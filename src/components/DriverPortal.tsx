@@ -156,16 +156,79 @@ export default function DriverPortal({
     <div className="space-y-8 max-w-5xl mx-auto">
       {/* Banner Card */}
       <div className="bg-slate-900 rounded-2xl p-6 lg:p-8 text-white relative overflow-hidden shadow-lg border border-slate-800">
-        <div className="relative z-10">
-          <span className="bg-blue-600/30 text-blue-300 text-xs font-semibold px-3 py-1 rounded-full border border-blue-500/20 uppercase tracking-widest">
-            Personal Compliance Desk
-          </span>
-          <h1 className="text-2xl lg:text-3xl font-black tracking-tight mt-3">Roster Verification Unit</h1>
-          <p className="text-slate-400 mt-1 max-w-xl text-sm leading-relaxed">
-            Welcome back, <span className="text-white font-bold">{driver.name}</span>! This panel displays your critical DOT expiry deadlines and equipment status.
-          </p>
+        <div className="relative z-10 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+          <div>
+            <div className="flex items-center gap-2">
+              <span className="bg-blue-600/30 text-blue-300 text-xs font-semibold px-3 py-1 rounded-full border border-blue-500/20 uppercase tracking-widest">
+                Personal Compliance Desk
+              </span>
+              <span className={`px-2.5 py-0.5 rounded-full text-xs font-black uppercase tracking-wider border ${
+                driver.taxClassification === 'W2'
+                  ? 'bg-indigo-500/30 text-indigo-200 border-indigo-400/30'
+                  : 'bg-amber-500/30 text-amber-200 border-amber-400/30'
+              }`}>
+                {driver.taxClassification || '1099-NEC'} Pay Status
+              </span>
+            </div>
+            <h1 className="text-2xl lg:text-3xl font-black tracking-tight mt-3">Roster Verification Unit</h1>
+            <p className="text-slate-400 mt-1 max-w-xl text-sm leading-relaxed">
+              Welcome back, <span className="text-white font-bold">{driver.name}</span>! This panel displays your critical DOT expiry deadlines, tax classification, and equipment status.
+            </p>
+          </div>
         </div>
-        <div className="absolute right-0 bottom-0 top-0 w-1/3 bg-radial from-blue-500/10 to-transparent pointer-events-none hidden md:block"></div>
+      </div>
+
+      {/* Driver Personal & Tax Profile Card */}
+      <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-4">
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 pb-3 border-b border-slate-100">
+          <div>
+            <h3 className="text-sm font-black text-slate-800 uppercase tracking-wider flex items-center gap-2">
+              <Receipt className="text-indigo-600" size={16} /> Driver Profile & Tax Information
+            </h3>
+            <p className="text-[10px] text-slate-400">View personal information, tax status, and direct deposit routing filed with administration.</p>
+          </div>
+
+          <span className={`px-3 py-1 rounded-xl text-xs font-black uppercase tracking-wider border ${
+            driver.taxClassification === 'W2' 
+              ? 'bg-indigo-50 text-indigo-800 border-indigo-200' 
+              : 'bg-amber-50 text-amber-800 border-amber-200'
+          }`}>
+            {driver.taxClassification === 'W2' ? 'W-2 Statutory Employee' : '1099-NEC Independent Contractor'}
+          </span>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs">
+          {/* Box 1: Contact Details */}
+          <div className="p-3.5 bg-slate-50 rounded-xl border border-slate-150 space-y-1.5">
+            <span className="text-[10px] font-extrabold uppercase text-slate-400 tracking-wider block">Personal & Contact Info</span>
+            <div><strong className="text-slate-800">Phone:</strong> {driver.profileInfo?.phone || '(312) 555-0192'}</div>
+            <div><strong className="text-slate-800">Email:</strong> {driver.profileInfo?.email || `${driver.name.toLowerCase().replace(' ', '.')}@fastgatelogistics.com`}</div>
+            <div><strong className="text-slate-800">Address:</strong> {driver.profileInfo?.address || '1042 N Michigan Ave, Chicago, IL'}</div>
+            <div><strong className="text-slate-800">Emergency Contact:</strong> {driver.profileInfo?.emergencyContactName || 'Family Contact'} ({driver.profileInfo?.emergencyContactPhone || '(312) 555-9011'})</div>
+          </div>
+
+          {/* Box 2: Tax Setup */}
+          <div className="p-3.5 bg-slate-50 rounded-xl border border-slate-150 space-y-1.5">
+            <span className="text-[10px] font-extrabold uppercase text-slate-400 tracking-wider block">Tax & Pay Details</span>
+            <div><strong className="text-slate-800">Tax Type:</strong> <span className="font-bold text-indigo-700">{driver.taxClassification || '1099-NEC'}</span></div>
+            <div><strong className="text-slate-800">Tax ID / SSN:</strong> <span className="font-mono">{driver.profileInfo?.ssnEin || '331-XX-9812'}</span></div>
+            <div><strong className="text-slate-800">Base Pay Rate:</strong> <span className="font-mono font-bold text-emerald-700">${driver.profileInfo?.payRatePerMile || 0.70}/mile</span></div>
+            <p className="text-[9.5px] text-slate-500 pt-1 leading-normal italic border-t border-slate-200/60 mt-1">
+              {driver.taxClassification === 'W2' 
+                ? 'W-2 Status: Federal and state payroll taxes withheld automatically on weekly paystubs.'
+                : '1099-NEC Status: Responsible for quarterly estimated tax filings. Form 1099-NEC issued annually.'}
+            </p>
+          </div>
+
+          {/* Box 3: CDL & Direct Deposit */}
+          <div className="p-3.5 bg-slate-50 rounded-xl border border-slate-150 space-y-1.5">
+            <span className="text-[10px] font-extrabold uppercase text-slate-400 tracking-wider block">CDL & Direct Deposit</span>
+            <div><strong className="text-slate-800">CDL Number:</strong> <span className="font-mono">{driver.profileInfo?.cdlNumber || 'IL-CDL-8492019'}</span> ({driver.profileInfo?.cdlState || 'IL'})</div>
+            <div><strong className="text-slate-800">Endorsements:</strong> {driver.profileInfo?.endorsements?.join(', ') || 'HazMat, Tanker'}</div>
+            <div><strong className="text-slate-800">Direct Deposit:</strong> {driver.profileInfo?.bankName || 'Chase Bank NA'}</div>
+            <div><strong className="text-slate-800">Account #:</strong> <span className="font-mono">{driver.profileInfo?.accountNumber || '*****8492'}</span></div>
+          </div>
+        </div>
       </div>
 
       {successMsg && (

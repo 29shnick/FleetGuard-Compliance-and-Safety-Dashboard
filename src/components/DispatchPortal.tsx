@@ -28,11 +28,13 @@ import {
   Download,
   Check
 } from 'lucide-react';
-import { Driver, DispatchLoad } from '../types';
+import { Driver, DispatchLoad, CompanyInfo } from '../types';
+import { DEFAULT_COMPANY_INFO } from '../data';
 
 interface DispatchPortalProps {
   drivers: Driver[];
   loads: DispatchLoad[];
+  companyInfo?: CompanyInfo;
   onAddLoad: (load: Omit<DispatchLoad, 'id' | 'submittedAt'>) => void;
   onUpdateLoadStatus: (id: string, status: DispatchLoad['status']) => void;
   onDeleteLoad: (id: string) => void;
@@ -83,6 +85,7 @@ export function calculateDistance(lat1: number, lon1: number, lat2: number, lon2
 export default function DispatchPortal({
   drivers,
   loads,
+  companyInfo = DEFAULT_COMPANY_INFO,
   onAddLoad,
   onUpdateLoadStatus,
   onDeleteLoad,

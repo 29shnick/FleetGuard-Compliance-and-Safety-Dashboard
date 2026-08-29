@@ -21,13 +21,15 @@ import {
   ShieldCheck,
   Check
 } from 'lucide-react';
-import { PayStub, DispatchLoad, Driver } from '../types';
+import { PayStub, DispatchLoad, Driver, CompanyInfo } from '../types';
+import { DEFAULT_COMPANY_INFO } from '../data';
 
 interface PayrollPortalProps {
   payStubs: PayStub[];
   loads: DispatchLoad[];
   drivers: Driver[];
   currentUserRole: string;
+  companyInfo?: CompanyInfo;
   onUpdateStubStatus: (id: string, status: PayStub['status']) => void;
 }
 
@@ -36,6 +38,7 @@ export default function PayrollPortal({
   loads,
   drivers,
   currentUserRole,
+  companyInfo = DEFAULT_COMPANY_INFO,
   onUpdateStubStatus
 }: PayrollPortalProps) {
   // Navigation State: 'settlements' | 'tax-forms'
@@ -593,7 +596,7 @@ export default function PayrollPortal({
                     >
                       {drivers.map(d => (
                         <option key={d.id} value={d.id}>
-                          {d.name} ({d.id === 'D1' || d.id === 'D2' ? 'W-2 Staff' : '1099 Contractor'})
+                          {d.name} ({d.taxClassification || '1099-NEC'})
                         </option>
                       ))}
                     </select>
@@ -762,14 +765,14 @@ export default function PayrollPortal({
                         <div className="space-y-3">
                           <div className="border border-slate-300 p-2 rounded bg-slate-50">
                             <span className="text-[8px] font-black uppercase text-slate-500 block">PAYER'S Name, Street Address, City, State, and ZIP Code</span>
-                            <strong className="text-[10px] block text-slate-900 mt-1">FASTGATE CARRIERS, INC.</strong>
-                            <span className="block text-[10px] text-slate-700 font-medium">950 Freight Way, Chicago Corporate Hub, IL 60601</span>
+                            <strong className="text-[10px] block text-slate-900 mt-1 uppercase">{companyInfo.legalName}</strong>
+                            <span className="block text-[10px] text-slate-700 font-medium">{companyInfo.address}</span>
                           </div>
 
                           <div className="grid grid-cols-2 gap-2">
                             <div className="border border-slate-300 p-1.5 rounded bg-slate-50 font-mono">
                               <span className="text-[8px] font-black uppercase text-slate-500 block">PAYER'S Federal TIN</span>
-                              <strong className="text-[10px] text-slate-800">36-9482019</strong>
+                              <strong className="text-[10px] text-slate-800">{companyInfo.feinTaxId}</strong>
                             </div>
                             <div className="border border-slate-300 p-1.5 rounded bg-slate-50 font-mono">
                               <span className="text-[8px] font-black uppercase text-slate-500 block">RECIPIENT'S TIN</span>
@@ -858,13 +861,13 @@ export default function PayrollPortal({
 
                           <div className="border border-slate-300 p-1.5 rounded bg-slate-50">
                             <span className="text-[7px] font-bold text-slate-400 block">b Employer identification number (EIN)</span>
-                            <strong className="text-[10px] text-slate-800 font-mono">36-9482019</strong>
+                            <strong className="text-[10px] text-slate-800 font-mono">{companyInfo.feinTaxId}</strong>
                           </div>
 
                           <div className="border border-slate-300 p-2 rounded bg-slate-50">
                             <span className="text-[7px] font-bold text-slate-400 block">c Employer's name, address, and ZIP code</span>
-                            <strong className="text-[10px] block text-slate-950">FASTGATE CARRIERS, INC.</strong>
-                            <span className="text-[9px] text-slate-600 block">950 Freight Way, Chicago Hub, IL 60601</span>
+                            <strong className="text-[10px] block text-slate-950 uppercase">{companyInfo.legalName}</strong>
+                            <span className="text-[9px] text-slate-600 block">{companyInfo.address}</span>
                           </div>
 
                           <div className="border border-slate-300 p-2 rounded bg-slate-50">

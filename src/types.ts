@@ -1,3 +1,21 @@
+export interface CompanyInfo {
+  legalName: string;
+  dbaName?: string;
+  usdotNumber: string;
+  mcNumber: string;
+  feinTaxId: string;
+  address: string;
+  phone: string;
+  email: string;
+  safetyManagerName: string;
+  iftaAccountState: string;
+  iftaAccountNumber: string;
+  stateTaxWithholdingId?: string;
+  bankName?: string;
+  payrollRoutingNumber?: string;
+  payrollAccountNumber?: string;
+}
+
 export type ComplianceStatus = 'Compliant' | 'Warning' | 'NON-COMPLIANT';
 
 export type UserRole = 'Safety Manager & CEO' | 'Dispatcher' | 'Driver';
@@ -9,6 +27,27 @@ export interface UserSession {
   driverId?: string; // If role is 'Driver', points to the corresponding Driver record
 }
 
+export type TaxClassification = 'W2' | '1099-NEC';
+
+export interface DriverProfileInfo {
+  phone?: string;
+  email?: string;
+  address?: string;
+  emergencyContactName?: string;
+  emergencyContactPhone?: string;
+  ssnEin?: string;
+  cdlNumber?: string;
+  cdlState?: string;
+  endorsements?: string[];
+  hireDate?: string;
+  bankName?: string;
+  routingNumber?: string;
+  accountNumber?: string;
+  payRatePerMile?: number;
+  operatingStatus?: 'Active' | 'On Leave' | 'Inactive';
+  notes?: string;
+}
+
 export interface Driver {
   id: string;
   name: string;
@@ -18,6 +57,8 @@ export interface Driver {
   overallStatus: ComplianceStatus;
   criticalViolations: number;
   isHighRisk: boolean;
+  taxClassification?: TaxClassification;
+  profileInfo?: DriverProfileInfo;
 }
 
 export interface Vehicle {
