@@ -100,7 +100,74 @@ export interface AuditLogEntry {
   role: UserRole;
   action: string;
   details: string;
-  type: 'security' | 'data_edit' | 'approval';
+  type: 'security' | 'data_edit' | 'approval' | 'incident';
+}
+
+export interface HistoricalViolation {
+  id: string;
+  driverId: string;
+  driverName: string;
+  date: string; // YYYY-MM-DD
+  type: string;
+  category: 'Hours of Service' | 'Vehicle Maintenance' | 'Unsafe Driving' | 'Driver Fitness';
+  severity: 'Critical' | 'Warning';
+  points: number;
+  fmcsaCode?: string;
+  location?: string;
+}
+
+export interface MonthlySafetyRiskDataPoint {
+  monthKey: string;
+  monthLabel: string;
+  criticalViolations: number;
+  unresolvedIncidents: number;
+  safetyRisk: number;
+  resolvedIncidents: number;
+  totalIncidents: number;
+  violationsList: HistoricalViolation[];
+  incidentsList: IncidentReport[];
+}
+
+export type IncidentType = 
+  | 'Mechanical Breakdown' 
+  | 'Collision / Accident' 
+  | 'Tire Blowout' 
+  | 'DOT Roadside Inspection' 
+  | 'Cargo Shift / HazMat Issue' 
+  | 'Medical Emergency' 
+  | 'Severe Weather Stoppage' 
+  | 'Other Roadside Issue';
+
+export type IncidentSeverity = 'Critical' | 'Major' | 'Minor';
+
+export type IncidentStatus = 
+  | 'Open - Dispatch Action Required' 
+  | 'In Progress - Assistance Dispatched' 
+  | 'Resolved / Cleared';
+
+export interface IncidentReport {
+  id: string;
+  driverId: string;
+  driverName: string;
+  driverPhone?: string;
+  truckId: string;
+  loadId?: string;
+  type: IncidentType;
+  severity: IncidentSeverity;
+  status: IncidentStatus;
+  location: string;
+  reportedAt: string;
+  description: string;
+  isVehicleDrivable: boolean;
+  injuriesReported: boolean;
+  policeContacted: boolean;
+  policeReportNumber?: string;
+  assistanceNeeded: string[];
+  photos?: { name: string; size?: number; dataUrl?: string }[];
+  dispatchNotes?: string;
+  serviceVendor?: string;
+  etaMinutes?: number;
+  resolvedAt?: string;
 }
 
 export interface DispatchLoad {
@@ -146,6 +213,43 @@ export interface PayStub {
   status: 'Pending Review' | 'Approved' | 'Paid';
   issuedAt: string;
   notes?: string;
+}
+
+export interface IftaJurisdictionRecord {
+  stateCode: string;
+  stateName: string;
+  totalMiles: number;
+  taxableMiles: number;
+  taxableGallons: number;
+  taxPaidGallons: number;
+  netTaxableGallons: number;
+  taxRatePerGallon: number;
+  netTaxDue: number; // positive = tax due, negative = credit/refund
+  associatedLoads: {
+    loadId: string;
+    loadNumber: string;
+    originHub: string;
+    destinationHub: string;
+    truckId: string;
+    driverName: string;
+    stateMiles: number;
+    date: string;
+  }[];
+}
+
+export interface IftaQuarterlyReport {
+  year: string;
+  quarter: 'Q1' | 'Q2' | 'Q3' | 'Q4';
+  filingDueDate: string;
+  totalIftaMiles: number;
+  totalTaxableMiles: number;
+  totalTaxableGallons: number;
+  totalTaxPaidGallons: number;
+  overallMpg: number;
+  grossTaxDue: number;
+  taxPaidCredits: number;
+  netTaxBalance: number;
+  jurisdictions: IftaJurisdictionRecord[];
 }
 
 

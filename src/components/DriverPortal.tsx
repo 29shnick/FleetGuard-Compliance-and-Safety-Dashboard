@@ -5,8 +5,10 @@ import {
   RenewalRequest, 
   ComplianceStatus,
   DispatchLoad,
-  PayStub
+  PayStub,
+  IncidentReport
 } from '../types';
+import IncidentReportingModal from './IncidentReportingModal';
 import { 
   FileCheck, 
   Calendar, 
@@ -23,7 +25,12 @@ import {
   Compass,
   ArrowRight,
   DollarSign,
-  Receipt
+  Receipt,
+  AlertTriangle,
+  Wrench,
+  Shield,
+  Activity,
+  PhoneCall
 } from 'lucide-react';
 
 interface DriverPortalProps {
@@ -35,6 +42,8 @@ interface DriverPortalProps {
   assignedLoads?: DispatchLoad[];
   onUpdateLoadStatus?: (id: string, status: DispatchLoad['status']) => void;
   payStubs?: PayStub[];
+  incidents?: IncidentReport[];
+  onReportIncident?: (incident: Omit<IncidentReport, 'id' | 'reportedAt' | 'status'>) => void;
 }
 
 export default function DriverPortal({ 
@@ -45,7 +54,9 @@ export default function DriverPortal({
   onSubmitIssue,
   assignedLoads = [],
   onUpdateLoadStatus,
-  payStubs = []
+  payStubs = [],
+  incidents = [],
+  onReportIncident
 }: DriverPortalProps) {
   const [cdlDate, setCdlDate] = useState('');
   const [medDate, setMedDate] = useState('');
@@ -53,6 +64,7 @@ export default function DriverPortal({
   const [activeForm, setActiveForm] = useState<'cdl' | 'med' | 'issue' | null>(null);
   const [successMsg, setSuccessMsg] = useState('');
   const [selectedStub, setSelectedStub] = useState<PayStub | null>(null);
+  const [isIncidentModalOpen, setIsIncidentModalOpen] = useState(false);
 
   // Find their assigned vehicle
   const assignedVehicle = useMemo(() => {
@@ -107,6 +119,10 @@ export default function DriverPortal({
   const myPayStubs = useMemo(() => {
     return payStubs.filter(ps => ps.driverId === driver.id);
   }, [payStubs, driver.id]);
+
+  const myIncidents = useMemo(() => {
+    return incidents.filter(inc => inc.driverId === driver.id);
+  }, [incidents, driver.id]);
 
   const triggerSuccessMsg = (msg: string) => {
     setSuccessMsg(msg);
@@ -174,6 +190,16 @@ export default function DriverPortal({
             <p className="text-slate-400 mt-1 max-w-xl text-sm leading-relaxed">
               Welcome back, <span className="text-white font-bold">{driver.name}</span>! This panel displays your critical DOT expiry deadlines, tax classification, and equipment status.
             </p>
+          </div>
+
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5 w-full md:w-auto shrink-0">
+            <button
+              onClick={() => setIsIncidentModalOpen(true)}
+              className="bg-rose-600 hover:bg-rose-500 text-white font-extrabold text-xs px-4 py-2.5 rounded-xl uppercase tracking-wider flex items-center justify-center gap-2 shadow-lg shadow-rose-950/60 border border-rose-400/40 transition-all hover:scale-[1.02] active:scale-[0.98]"
+            >
+              <AlertTriangle size={15} className="animate-pulse text-amber-300" />
+              Report Roadside Incident
+            </button>
           </div>
         </div>
       </div>
@@ -504,6 +530,174 @@ export default function DriverPortal({
         </div>
       </div>
 
+      {/* Roadside Emergencies & Incident Center */}
+      <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-4">
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 pb-3 border-b border-slate-100">
+          <div>
+            <div className="flex items-center gap-2">
+              <h3 className="text-sm font-black text-slate-800 uppercase tracking-wider flex items-center gap-2">
+                <AlertTriangle className="text-rose-600" size={16} /> Roadside Emergencies & Incident Dispatch
+              </h3>
+              {myIncidents.filter(i => i.status !== 'Resolved / Cleared').length > 0 && (
+                <span className="bg-rose-500 text-white text-[10px] font-black uppercase px-2 py-0.5 rounded-full animate-pulse">
+                  {myIncidents.filter(i => i.status !== 'Resolved / Cleared').length} Active
+                </span>
+              )}
+            </div>
+            <p className="text-[10px] text-slate-400 mt-0.5">
+              FMCSA roadside breakdown & accident protocol. All events automatically sync with Central Dispatch and create permanent entries in the carrier Audit Trail.
+            </p>
+          </div>
+
+          <button
+            onClick={() => setIsIncidentModalOpen(true)}
+            className="bg-rose-600 hover:bg-rose-500 text-white font-extrabold text-xs px-3.5 py-2 rounded-xl uppercase tracking-wider flex items-center gap-1.5 shadow-sm transition-all shrink-0"
+          >
+            <AlertTriangle size={14} />
+            Report Roadside Incident
+          </button>
+        </div>
+
+        {myIncidents.length === 0 ? (
+          <div className="p-6 bg-slate-50 rounded-xl border border-slate-150 text-center space-y-2">
+            <div className="w-10 h-10 bg-emerald-100 rounded-full flex items-center justify-center text-emerald-700 mx-auto">
+              <Shield size={20} />
+            </div>
+            <h4 className="text-xs font-bold text-slate-800 uppercase tracking-wider">No Active Roadside Incidents</h4>
+            <p className="text-xs text-slate-500 max-w-lg mx-auto">
+              Your equipment and route operate under nominal safety status. If you experience a mechanical breakdown, flat tire, accident, or DOT inspection, click above to alert dispatch immediately.
+            </p>
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {myIncidents.map((incident) => (
+              <div 
+                key={incident.id} 
+                className={`p-4 rounded-xl border text-xs space-y-3 transition-all ${
+                  incident.status === 'Open - Dispatch Action Required'
+                    ? 'bg-rose-50/70 border-rose-200'
+                    : incident.status === 'In Progress - Assistance Dispatched'
+                    ? 'bg-amber-50/60 border-amber-200'
+                    : 'bg-slate-50 border-slate-200'
+                }`}
+              >
+                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="font-mono font-black text-slate-900 bg-white px-2 py-0.5 rounded border border-slate-200">
+                      {incident.id}
+                    </span>
+                    <span className="font-bold text-slate-800">
+                      {incident.type}
+                    </span>
+                    <span className={`px-2 py-0.5 rounded text-[9px] font-black uppercase ${
+                      incident.severity === 'Critical' ? 'bg-rose-600 text-white' :
+                      incident.severity === 'Major' ? 'bg-amber-500 text-slate-950' :
+                      'bg-blue-600 text-white'
+                    }`}>
+                      {incident.severity}
+                    </span>
+                  </div>
+
+                  {/* Status indicator */}
+                  <span className={`px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-wider flex items-center gap-1.5 ${
+                    incident.status === 'Open - Dispatch Action Required'
+                      ? 'bg-rose-600 text-white animate-pulse'
+                      : incident.status === 'In Progress - Assistance Dispatched'
+                      ? 'bg-amber-500 text-slate-950 font-bold'
+                      : 'bg-emerald-600 text-white'
+                  }`}>
+                    {incident.status === 'In Progress - Assistance Dispatched' && <Wrench size={11} />}
+                    {incident.status === 'Resolved / Cleared' && <CheckCircle size={11} />}
+                    {incident.status}
+                  </span>
+                </div>
+
+                {/* Details grid */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-2 bg-white p-3 rounded-lg border border-slate-150">
+                  <div>
+                    <span className="text-[9px] text-slate-400 uppercase font-bold block">Location</span>
+                    <span className="font-semibold text-slate-800 flex items-center gap-1 mt-0.5">
+                      <MapPin size={11} className="text-rose-500 shrink-0" />
+                      {incident.location}
+                    </span>
+                  </div>
+
+                  <div>
+                    <span className="text-[9px] text-slate-400 uppercase font-bold block">Vehicle & Load</span>
+                    <span className="font-mono text-slate-700 font-semibold block mt-0.5">
+                      Truck {incident.truckId} {incident.loadId ? `• ${incident.loadId}` : '• Empty'}
+                    </span>
+                  </div>
+
+                  <div>
+                    <span className="text-[9px] text-slate-400 uppercase font-bold block">Drivability & Safety</span>
+                    <span className="font-semibold text-slate-800 block mt-0.5">
+                      {incident.isVehicleDrivable ? '✓ Drivable' : '✕ Immobilized'} • {incident.injuriesReported ? '🚨 Injury Reported' : 'No Injuries'}
+                    </span>
+                  </div>
+
+                  <div>
+                    <span className="text-[9px] text-slate-400 uppercase font-bold block">Reported At</span>
+                    <span className="font-mono text-slate-600 block mt-0.5">
+                      {incident.reportedAt}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Statement */}
+                <p className="text-slate-700 bg-white/70 p-2.5 rounded-lg border border-slate-150 leading-relaxed text-[11px]">
+                  <strong className="text-slate-900 font-bold">Driver Statement:</strong> {incident.description}
+                </p>
+
+                {/* Assistance Needed Chips */}
+                {incident.assistanceNeeded.length > 0 && (
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    <span className="text-[10px] text-slate-500 font-bold">Requested:</span>
+                    {incident.assistanceNeeded.map((item, idx) => (
+                      <span key={idx} className="bg-white border border-slate-200 text-slate-700 px-2 py-0.5 rounded text-[10px] font-medium">
+                        {item}
+                      </span>
+                    ))}
+                  </div>
+                )}
+
+                {/* Dispatch Response Tracker */}
+                {(incident.serviceVendor || incident.dispatchNotes) && (
+                  <div className="bg-white border border-indigo-200 p-3 rounded-xl space-y-1 text-slate-800">
+                    <div className="flex items-center justify-between text-indigo-900 font-bold text-[11px]">
+                      <span className="flex items-center gap-1.5">
+                        <Activity size={13} className="text-indigo-600" /> Dispatch Response Update
+                      </span>
+                      {incident.etaMinutes && (
+                        <span className="bg-indigo-50 border border-indigo-200 text-indigo-700 px-2 py-0.5 rounded font-mono text-[10px]">
+                          ETA ~{incident.etaMinutes} mins
+                        </span>
+                      )}
+                    </div>
+                    {incident.serviceVendor && (
+                      <p className="text-[11px] text-slate-700">
+                        <strong>Assistance Provider:</strong> {incident.serviceVendor}
+                      </p>
+                    )}
+                    {incident.dispatchNotes && (
+                      <p className="text-[10.5px] text-slate-600 italic">
+                        "{incident.dispatchNotes}"
+                      </p>
+                    )}
+                  </div>
+                )}
+
+                {incident.policeReportNumber && (
+                  <div className="text-[10px] text-blue-800 bg-blue-50 border border-blue-100 px-2.5 py-1 rounded">
+                    <strong>Law Enforcement Record:</strong> {incident.policeReportNumber}
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
       {/* Assigned Cargo Trips Section */}
       <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
         <h3 className="text-sm font-bold text-slate-800 mb-4 flex items-center gap-2">
@@ -724,6 +918,23 @@ export default function DriverPortal({
 
           </div>
         </div>
+      )}
+
+      {/* Roadside Incident Reporting Modal */}
+      {isIncidentModalOpen && (
+        <IncidentReportingModal
+          driver={driver}
+          assignedVehicle={assignedVehicle}
+          assignedLoads={myLoads}
+          onClose={() => setIsIncidentModalOpen(false)}
+          onSubmitIncident={(incidentData) => {
+            if (onReportIncident) {
+              onReportIncident(incidentData);
+            }
+            setIsIncidentModalOpen(false);
+            triggerSuccessMsg('Roadside incident reported to Central Dispatch! An official event has been recorded in the Audit Trail and dispatch assistance is alerted.');
+          }}
+        />
       )}
     </div>
   );

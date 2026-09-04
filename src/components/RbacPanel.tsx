@@ -10,23 +10,40 @@ import {
   AlertCircle,
   Clock
 } from 'lucide-react';
-import { UserSession, UserRole } from '../types';
+import { UserSession, UserRole, Driver, RenewalRequest } from '../types';
+import AlertsDropdown from './AlertsDropdown';
 
 export const SIMULATED_USERS: UserSession[] = [
   { id: 'admin-alice', name: 'Alice Vance', role: 'Safety Manager & CEO' },
   { id: 'dispatcher-bob', name: 'Bob Carter', role: 'Dispatcher' },
-  { id: 'D1', name: 'Nikola Shikaleski', role: 'Driver', driverId: 'D1' },
   { id: 'D2', name: 'James Wilson', role: 'Driver', driverId: 'D2' },
   { id: 'D4', name: 'Robert Brown', role: 'Driver', driverId: 'D4' },
+  { id: 'D5', name: 'Linda Garcia', role: 'Driver', driverId: 'D5' },
 ];
 
 interface RbacPanelProps {
   currentUser: UserSession;
   onUserChange: (user: UserSession) => void;
   pendingInboxCount: number;
+  drivers?: Driver[];
+  renewalRequests?: RenewalRequest[];
+  onInspectDriver?: (driver: Driver) => void;
+  onNavigateToTab?: (tab: string) => void;
+  onSubmitRenewal?: (driverId: string, type: 'CDL' | 'Medical Cert', date: string) => void;
+  onLogSecurityAction?: (action: string, details: string, type: 'security' | 'data_edit' | 'approval' | 'incident') => void;
 }
 
-export default function RbacPanel({ currentUser, onUserChange, pendingInboxCount }: RbacPanelProps) {
+export default function RbacPanel({ 
+  currentUser, 
+  onUserChange, 
+  pendingInboxCount,
+  drivers = [],
+  renewalRequests = [],
+  onInspectDriver,
+  onNavigateToTab,
+  onSubmitRenewal,
+  onLogSecurityAction
+}: RbacPanelProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [showGuide, setShowGuide] = useState(false);
 
@@ -96,6 +113,17 @@ export default function RbacPanel({ currentUser, onUserChange, pendingInboxCount
           <Clock size={12} />
           <span>{currentMockTime} UTC</span>
         </div>
+
+        {/* Top Header Alerts Notification System */}
+        <AlertsDropdown
+          drivers={drivers}
+          currentUser={currentUser}
+          renewalRequests={renewalRequests}
+          onInspectDriver={onInspectDriver}
+          onNavigateToTab={onNavigateToTab}
+          onSubmitRenewal={onSubmitRenewal}
+          onLogSecurityAction={onLogSecurityAction}
+        />
 
         {/* Dynamic Simulation Switcher */}
         <div className="relative">

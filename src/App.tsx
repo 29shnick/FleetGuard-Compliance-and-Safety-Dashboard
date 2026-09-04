@@ -21,7 +21,8 @@ import {
   AlertCircle,
   Compass,
   DollarSign,
-  Receipt
+  Receipt,
+  ShieldCheck
 } from 'lucide-react';
 import { 
   BarChart, 
@@ -32,8 +33,8 @@ import {
   Cell, 
   ResponsiveContainer 
 } from 'recharts';
-import { MOCK_DRIVERS, MOCK_VEHICLES, DEFAULT_COMPANY_INFO } from './data';
-import { Driver, Vehicle, ComplianceStatus, UserSession, AuditLogEntry, RenewalRequest, DispatchLoad, PayStub, TaxClassification, CompanyInfo } from './types';
+import { MOCK_DRIVERS, MOCK_VEHICLES, DEFAULT_COMPANY_INFO, MOCK_INCIDENTS } from './data';
+import { Driver, Vehicle, ComplianceStatus, UserSession, AuditLogEntry, RenewalRequest, DispatchLoad, PayStub, TaxClassification, CompanyInfo, IncidentReport } from './types';
 import RbacPanel, { SIMULATED_USERS } from './components/RbacPanel';
 import DriverPortal from './components/DriverPortal';
 import ActionCenter from './components/ActionCenter';
@@ -42,6 +43,8 @@ import DispatchPortal from './components/DispatchPortal';
 import PayrollPortal from './components/PayrollPortal';
 import DriverProfileModal from './components/DriverProfileModal';
 import CompanySettingsModal from './components/CompanySettingsModal';
+import SafetyRiskHeatmap from './components/SafetyRiskHeatmap';
+import SafetyRiskTrendChart from './components/SafetyRiskTrendChart';
 import { Building2 } from 'lucide-react';
 
 // Helper for days difference
@@ -65,7 +68,8 @@ const calcStatus = (cdlDate: string, medDate: string): ComplianceStatus => {
 };
 
 export default function App() {
-  const [activeTab, setActiveTab] = useState<string>('overview');
+  const [activeTab, setActiveTab] = useState<'safety' | 'dispatch' | 'accounting' | 'portal'>('safety');
+  const [safetySubTab, setSafetySubTab] = useState<'drivers' | 'vehicles' | 'overview' | 'inbox' | 'logs'>('drivers');
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<ComplianceStatus[]>(['Compliant', 'Warning', 'NON-COMPLIANT']);
@@ -73,13 +77,24 @@ export default function App() {
   // --- Session Role State ---
   const [currentUser, setCurrentUser] = useState<UserSession>(() => {
     const saved = localStorage.getItem('fg_currentUser');
-    return saved ? JSON.parse(saved) : SIMULATED_USERS[0]; // Admin by default
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        if (parsed && !parsed.name?.toLowerCase().includes('shikaleski') && parsed.id !== 'D1') {
+          return parsed;
+        }
+      } catch (e) {
+        // fallback
+      }
+    }
+    return SIMULATED_USERS[0]; // Admin by default
   });
 
-  // --- Drivers Master State ---
+  // --- Drivers Master State (Guaranteed non-Nikola) ---
   const [drivers, setDrivers] = useState<Driver[]>(() => {
     const saved = localStorage.getItem('fg_drivers');
-    return saved ? JSON.parse(saved) : MOCK_DRIVERS;
+    const initialList: Driver[] = saved ? JSON.parse(saved) : MOCK_DRIVERS;
+    return initialList.filter(d => !d.name.toLowerCase().includes('shikaleski') && d.id !== 'D1');
   });
 
   // --- Vehicles Master State ---
@@ -112,10 +127,18 @@ export default function App() {
   // --- Shipping Loads State ---
   const [loads, setLoads] = useState<DispatchLoad[]>(() => {
     const saved = localStorage.getItem('fg_loads');
-    if (saved) return JSON.parse(saved);
+    if (saved) {
+      try {
+        const parsed: DispatchLoad[] = JSON.parse(saved);
+        return parsed.map(l => l.driverId === 'D1' || l.driverName.toLowerCase().includes('shikaleski')
+          ? { ...l, driverId: 'D5', driverName: 'Linda Garcia', truckId: 'TRK-505' }
+          : l
+        );
+      } catch (e) {}
+    }
     return [
       { id: 'LD-1', loadNumber: 'LD-3942', originHub: 'Chicago, IL', destinationHub: 'New York, NY', calculatedMiles: 712, driverId: 'D2', driverName: 'James Wilson', truckId: 'TRK-202', ratePerMile: 2.60, payout: 1851.20, status: 'Dispatched', cargoType: 'Refrigerated Food', weightLbs: 38000, submittedAt: '2026-05-24 10:15' },
-      { id: 'LD-2', loadNumber: 'LD-2051', originHub: 'Dallas, TX', destinationHub: 'Los Angeles, CA', calculatedMiles: 1400, driverId: 'D1', driverName: 'Nikola Shikaleski', truckId: 'TRK-101', ratePerMile: 3.10, payout: 4340.00, status: 'Active', cargoType: 'Electronics Secure', weightLbs: 15500, submittedAt: '2026-05-24 11:30' },
+      { id: 'LD-2', loadNumber: 'LD-2051', originHub: 'Dallas, TX', destinationHub: 'Los Angeles, CA', calculatedMiles: 1400, driverId: 'D5', driverName: 'Linda Garcia', truckId: 'TRK-505', ratePerMile: 3.10, payout: 4340.00, status: 'Active', cargoType: 'Electronics Secure', weightLbs: 15500, submittedAt: '2026-05-24 11:30' },
       { id: 'LD-3', loadNumber: 'LD-8103', originHub: 'Miami, FL', destinationHub: 'Atlanta, GA', calculatedMiles: 660, driverId: 'Unassigned', driverName: 'Unassigned', truckId: 'None', ratePerMile: 2.15, payout: 1419.00, status: 'Pending', cargoType: 'Dry Van General', weightLbs: 24000, submittedAt: '2026-05-24 12:45' }
     ];
   });
@@ -123,7 +146,15 @@ export default function App() {
   // --- Weekly Pay Stubs Master State ---
   const [payStubs, setPayStubs] = useState<PayStub[]>(() => {
     const saved = localStorage.getItem('fg_paystubs');
-    if (saved) return JSON.parse(saved);
+    if (saved) {
+      try {
+        const parsed: PayStub[] = JSON.parse(saved);
+        return parsed.map(ps => ps.driverId === 'D1' || ps.driverName.toLowerCase().includes('shikaleski')
+          ? { ...ps, driverId: 'D5', driverName: 'Linda Garcia' }
+          : ps
+        );
+      } catch (e) {}
+    }
     return [
       {
         id: 'PS-1',
@@ -138,8 +169,8 @@ export default function App() {
       },
       {
         id: 'PS-2',
-        driverId: 'D1',
-        driverName: 'Nikola Shikaleski',
+        driverId: 'D5',
+        driverName: 'Linda Garcia',
         weekEndingDate: '2026-05-30',
         loadIds: ['LD-2'],
         totalMiles: 1400,
@@ -161,6 +192,19 @@ export default function App() {
       }
     }
     return DEFAULT_COMPANY_INFO;
+  });
+
+  // Roadside Incidents State
+  const [incidents, setIncidents] = useState<IncidentReport[]>(() => {
+    const saved = localStorage.getItem('fg_incidents');
+    if (saved) {
+      try {
+        return JSON.parse(saved);
+      } catch (e) {
+        // fallback
+      }
+    }
+    return MOCK_INCIDENTS;
   });
 
   // Forecasting simulation state
@@ -231,22 +275,34 @@ export default function App() {
     localStorage.setItem('fg_company_info', JSON.stringify(companyInfo));
   }, [companyInfo]);
 
+  useEffect(() => {
+    localStorage.setItem('fg_incidents', JSON.stringify(incidents));
+  }, [incidents]);
+
+  // Count active unresolved roadside incidents
+  const activeIncidentsCount = useMemo(() => {
+    return incidents.filter(i => i.status !== 'Resolved / Cleared').length;
+  }, [incidents]);
+
   // Adjust active tab based on active user role
   useEffect(() => {
     if (currentUser.role === 'Driver') {
       setActiveTab('portal');
     } else if (currentUser.role === 'Dispatcher') {
       setActiveTab('dispatch');
-    } else if (activeTab === 'portal' || activeTab === 'dispatch') {
-      setActiveTab('overview');
+    } else if (activeTab === 'portal') {
+      setActiveTab('safety');
     }
   }, [currentUser]);
 
   // --- Log Security Action Utility ---
-  const logSecurityAction = (action: string, details: string, type: 'security' | 'data_edit' | 'approval') => {
+  const logSecurityAction = (action: string, details: string, type: 'security' | 'data_edit' | 'approval' | 'incident') => {
+    const now = new Date();
+    const timestamp = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')} ${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+    
     const newLog: AuditLogEntry = {
       id: `L-${Date.now()}`,
-      timestamp: '2026-05-24 14:14',
+      timestamp,
       userId: currentUser.id,
       userName: currentUser.name,
       role: currentUser.role,
@@ -255,6 +311,59 @@ export default function App() {
       type
     };
     setAuditLogs(prev => [newLog, ...prev]);
+  };
+
+  // --- Roadside Incident Handlers ---
+  const handleReportIncident = (incidentData: Omit<IncidentReport, 'id' | 'reportedAt' | 'status'>) => {
+    const newIncidentId = `INC-${Math.floor(1000 + Math.random() * 9000)}`;
+    const now = new Date();
+    const reportedAt = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')} ${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+    
+    const newIncident: IncidentReport = {
+      ...incidentData,
+      id: newIncidentId,
+      reportedAt,
+      status: 'Open - Dispatch Action Required'
+    };
+
+    setIncidents(prev => [newIncident, ...prev]);
+
+    // Automatically generate an entry in the Audit Trail
+    logSecurityAction(
+      `ROADSIDE INCIDENT REPORTED (${newIncident.type.toUpperCase()})`,
+      `Driver ${incidentData.driverName} reported roadside incident ${newIncidentId} (${incidentData.type}, Severity: ${incidentData.severity}) at location "${incidentData.location}". Drivable: ${incidentData.isVehicleDrivable ? 'Yes' : 'No'}, Injuries: ${incidentData.injuriesReported ? 'Yes' : 'No'}. Dispatched alert triggered across Dispatch Board.`,
+      'incident'
+    );
+  };
+
+  const handleUpdateIncident = (
+    incidentId: string, 
+    status: IncidentReport['status'], 
+    dispatchNotes?: string, 
+    serviceVendor?: string, 
+    etaMinutes?: number
+  ) => {
+    const now = new Date();
+    const resolvedTimestamp = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')} ${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+
+    setIncidents(prev => prev.map(inc => {
+      if (inc.id !== incidentId) return inc;
+      return {
+        ...inc,
+        status,
+        dispatchNotes: dispatchNotes !== undefined ? dispatchNotes : inc.dispatchNotes,
+        serviceVendor: serviceVendor !== undefined ? serviceVendor : inc.serviceVendor,
+        etaMinutes: etaMinutes !== undefined ? etaMinutes : inc.etaMinutes,
+        resolvedAt: status === 'Resolved / Cleared' ? (inc.resolvedAt || resolvedTimestamp) : inc.resolvedAt
+      };
+    }));
+
+    // Log coordination update into Audit Trail
+    logSecurityAction(
+      `INCIDENT DISPATCH COORDINATED (${incidentId})`,
+      `Status transitioned to "${status}". Assigned Service Vendor: "${serviceVendor || 'None'}", ETA: ${etaMinutes ? `${etaMinutes}m` : 'N/A'}. Dispatcher Notes: "${dispatchNotes || 'Updated'}".`,
+      'incident'
+    );
   };
 
   // Switch simulated users
@@ -292,7 +401,7 @@ export default function App() {
       ]);
       setLoads([
         { id: 'LD-1', loadNumber: 'LD-3942', originHub: 'Chicago, IL', destinationHub: 'New York, NY', calculatedMiles: 712, driverId: 'D2', driverName: 'James Wilson', truckId: 'TRK-202', ratePerMile: 2.60, payout: 1851.20, status: 'Dispatched', cargoType: 'Refrigerated Food', weightLbs: 38000, submittedAt: '2026-05-24 10:15' },
-        { id: 'LD-2', loadNumber: 'LD-2051', originHub: 'Dallas, TX', destinationHub: 'Los Angeles, CA', calculatedMiles: 1400, driverId: 'D1', driverName: 'Nikola Shikaleski', truckId: 'TRK-101', ratePerMile: 3.10, payout: 4340.00, status: 'Active', cargoType: 'Electronics Secure', weightLbs: 15500, submittedAt: '2026-05-24 11:30' },
+        { id: 'LD-2', loadNumber: 'LD-2051', originHub: 'Dallas, TX', destinationHub: 'Los Angeles, CA', calculatedMiles: 1400, driverId: 'D5', driverName: 'Linda Garcia', truckId: 'TRK-505', ratePerMile: 3.10, payout: 4340.00, status: 'Active', cargoType: 'Electronics Secure', weightLbs: 15500, submittedAt: '2026-05-24 11:30' },
         { id: 'LD-3', loadNumber: 'LD-8103', originHub: 'Miami, FL', destinationHub: 'Atlanta, GA', calculatedMiles: 660, driverId: 'Unassigned', driverName: 'Unassigned', truckId: 'None', ratePerMile: 2.15, payout: 1419.00, status: 'Pending', cargoType: 'Dry Van General', weightLbs: 24000, submittedAt: '2026-05-24 12:45' }
       ]);
       setPayStubs([
@@ -309,8 +418,8 @@ export default function App() {
         },
         {
           id: 'PS-2',
-          driverId: 'D1',
-          driverName: 'Nikola Shikaleski',
+          driverId: 'D5',
+          driverName: 'Linda Garcia',
           weekEndingDate: '2026-05-30',
           loadIds: ['LD-2'],
           totalMiles: 1400,
@@ -432,6 +541,26 @@ export default function App() {
     logSecurityAction(
       'Document Filing',
       `${activeDriverScope.name} uploaded renewal cert for ${type} expiring ${date}.`,
+      'approval'
+    );
+  };
+
+  const handleAlertRenewalSubmit = (driverId: string, type: 'CDL' | 'Medical Cert', date: string) => {
+    const targetDriver = drivers.find(d => d.id === driverId);
+    const driverName = targetDriver ? targetDriver.name : currentUser.name;
+    const newReq: RenewalRequest = {
+      id: `REQ-${Date.now()}`,
+      driverId,
+      driverName,
+      type,
+      requestedValue: date,
+      status: 'Pending',
+      submittedAt: '2026-05-24 14:14'
+    };
+    setRenewalRequests(prev => [newReq, ...prev]);
+    logSecurityAction(
+      'Document Filing',
+      `${driverName} submitted renewal for ${type} (New Proposed Expiry: ${date}).`,
       'approval'
     );
   };
@@ -889,6 +1018,29 @@ export default function App() {
 
   const pendingRequestsCount = useMemo(() => renewalRequests.filter(r => r.status === 'Pending').length, [renewalRequests]);
 
+  // Master navigation handler for cross-component linking
+  const handleNavigateToTab = (target: string) => {
+    if (target === 'drivers' || target === 'vehicles' || target === 'inbox' || target === 'logs' || target === 'overview' || target === 'safety') {
+      setActiveTab('safety');
+      if (target === 'safety') {
+        setSafetySubTab('drivers');
+      } else {
+        setSafetySubTab(target as any);
+      }
+    } else if (target === 'dispatch') {
+      setActiveTab('dispatch');
+    } else if (target === 'payroll' || target === 'accounting' || target === 'ifta') {
+      setActiveTab('accounting');
+    } else if (target === 'company') {
+      setIsEditingCompany(true);
+    } else if (target === 'portal') {
+      setActiveTab('portal');
+    } else {
+      setActiveTab(target as any);
+    }
+    setIsMobileMenuOpen(false);
+  };
+
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col font-sans text-slate-900">
       
@@ -896,7 +1048,15 @@ export default function App() {
       <RbacPanel 
         currentUser={currentUser} 
         onUserChange={handleUserChange} 
-        pendingInboxCount={pendingRequestsCount} 
+        pendingInboxCount={pendingRequestsCount}
+        drivers={drivers}
+        renewalRequests={renewalRequests}
+        onInspectDriver={(driver) => setEditingDriver(driver)}
+        onNavigateToTab={(tab) => {
+          handleNavigateToTab(tab);
+        }}
+        onSubmitRenewal={handleAlertRenewalSubmit}
+        onLogSecurityAction={logSecurityAction}
       />
 
       {/* Main Core Container */}
@@ -922,7 +1082,7 @@ export default function App() {
               <div className="w-9 h-9 bg-blue-600 rounded-lg flex items-center justify-center text-white font-black text-lg">🛡️</div>
               <div>
                 <h1 className="text-white font-extrabold text-sm leading-tight uppercase tracking-wider">FleetGuard</h1>
-                <p className="text-[10px] text-zinc-400 uppercase font-bold tracking-widest mt-0.5">RBAC Portal</p>
+                <p className="text-[10px] text-zinc-400 uppercase font-bold tracking-widest mt-0.5">Enterprise HQ</p>
               </div>
             </div>
             <button onClick={() => setIsMobileMenuOpen(false)} className="lg:hidden p-1.5 hover:bg-slate-800 rounded-lg text-slate-400">
@@ -943,81 +1103,103 @@ export default function App() {
             </div>
           </div>
 
-          {/* Navigation Items (Role-sensitive rendering) */}
-          <nav className="flex-1 p-4 space-y-1.5 font-sans">
+          {/* Navigation Items (Clean Grouped Architecture: Safety, Dispatch, Accounting) */}
+          <nav className="flex-1 p-4 space-y-2 font-sans">
             {currentUser.role !== 'Driver' ? (
               <>
+                <div className="text-[10px] font-bold uppercase tracking-widest text-slate-500 px-3 pt-1">
+                  Core Management Modules
+                </div>
+
+                {/* 1. SAFETY & COMPLIANCE */}
                 <button 
-                  onClick={() => { setActiveTab('overview'); setIsMobileMenuOpen(false); }} 
-                  className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-lg transition-colors text-xs font-semibold uppercase tracking-wider ${activeTab === 'overview' ? 'bg-blue-600 text-white shadow-xs' : 'hover:bg-slate-850'}`}
-                >
-                  <LayoutDashboard size={14} /> Global Overview
-                </button>
-                <button 
-                  onClick={() => { setActiveTab('drivers'); setIsMobileMenuOpen(false); }} 
-                  className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-lg transition-colors text-xs font-semibold uppercase tracking-wider ${activeTab === 'drivers' ? 'bg-blue-600 text-white shadow-xs' : 'hover:bg-slate-850'}`}
+                  onClick={() => { setActiveTab('safety'); setIsMobileMenuOpen(false); }} 
+                  className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl transition-all text-xs font-bold uppercase tracking-wider ${
+                    activeTab === 'safety' 
+                      ? 'bg-blue-600 text-white shadow-md' 
+                      : 'hover:bg-slate-800 text-slate-300'
+                  }`}
                 >
                   <span className="flex items-center gap-3">
-                    <Users size={14} /> Drivers Roster
+                    <ShieldCheck size={16} className={activeTab === 'safety' ? 'text-white' : 'text-blue-400'} />
+                    Safety & Compliance
                   </span>
+                  {expiredDocsCount > 0 ? (
+                    <span className="bg-rose-500 text-white text-[10px] font-black px-1.5 py-0.5 rounded-full animate-pulse">
+                      {expiredDocsCount}
+                    </span>
+                  ) : pendingRequestsCount > 0 ? (
+                    <span className="bg-amber-500 text-white text-[10px] font-black px-1.5 py-0.5 rounded-full">
+                      {pendingRequestsCount}
+                    </span>
+                  ) : null}
                 </button>
-                <button 
-                  onClick={() => { setActiveTab('vehicles'); setIsMobileMenuOpen(false); }} 
-                  className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-lg transition-colors text-xs font-semibold uppercase tracking-wider ${activeTab === 'vehicles' ? 'bg-blue-600 text-white shadow-xs' : 'hover:bg-slate-850'}`}
-                >
-                  <Truck size={14} /> Vehicles Fleet
-                </button>
+
+                {/* 2. DISPATCH & OPERATIONS */}
                 <button 
                   onClick={() => { setActiveTab('dispatch'); setIsMobileMenuOpen(false); }} 
-                  className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-lg transition-colors text-xs font-semibold uppercase tracking-wider ${activeTab === 'dispatch' ? 'bg-blue-600 text-white shadow-xs' : 'hover:bg-slate-850'}`}
-                >
-                  <Compass size={14} /> Freight Dispatch Board
-                </button>
-                <button 
-                  onClick={() => { setActiveTab('payroll'); setIsMobileMenuOpen(false); }} 
-                  className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-lg transition-colors text-xs font-semibold uppercase tracking-wider ${activeTab === 'payroll' ? 'bg-blue-600 text-white shadow-xs' : 'hover:bg-slate-850'}`}
-                >
-                  <DollarSign size={14} /> Weekly Payroll HQ
-                </button>
-                <button 
-                  onClick={() => { setActiveTab('inbox'); setIsMobileMenuOpen(false); }} 
-                  className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-lg transition-colors text-xs font-semibold uppercase tracking-wider ${activeTab === 'inbox' ? 'bg-blue-600 text-white shadow-xs' : 'hover:bg-slate-850'}`}
+                  className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl transition-all text-xs font-bold uppercase tracking-wider ${
+                    activeTab === 'dispatch' 
+                      ? 'bg-blue-600 text-white shadow-md' 
+                      : 'hover:bg-slate-800 text-slate-300'
+                  }`}
                 >
                   <span className="flex items-center gap-3">
-                    <FileBadge2 size={14} /> Approvals Box
+                    <Compass size={16} className={activeTab === 'dispatch' ? 'text-white' : 'text-amber-400'} />
+                    Dispatch & Operations
                   </span>
-                  {pendingRequestsCount > 0 && (
-                    <span className="bg-rose-500 text-white text-[10px] font-black h-5 w-5 rounded-full flex items-center justify-center animate-pulse">
-                      {pendingRequestsCount}
+                  {activeIncidentsCount > 0 ? (
+                    <span className="bg-rose-500 text-white text-[10px] font-black px-2 py-0.5 rounded-full flex items-center gap-1 animate-pulse">
+                      🚨 {activeIncidentsCount}
+                    </span>
+                  ) : (
+                    <span className="text-[10px] font-mono font-bold text-slate-400 px-1.5 py-0.5 bg-slate-800 rounded">
+                      {loads.length}
                     </span>
                   )}
                 </button>
+
+                {/* 3. ACCOUNTING & FINANCIAL HQ */}
                 <button 
-                  onClick={() => { setActiveTab('logs'); setIsMobileMenuOpen(false); }} 
-                  className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-lg transition-colors text-xs font-semibold uppercase tracking-wider ${activeTab === 'logs' ? 'bg-blue-600 text-white shadow-xs' : 'hover:bg-slate-850'}`}
-                >
-                  <Fingerprint size={14} /> Audit Trail logs
-                </button>
-                <button 
-                  onClick={() => { setIsEditingCompany(true); setIsMobileMenuOpen(false); }} 
-                  className="w-full flex items-center justify-between px-3.5 py-2.5 rounded-lg transition-colors text-xs font-bold uppercase tracking-wider bg-slate-800/80 hover:bg-slate-800 text-indigo-300 border border-slate-700/60 mt-2"
-                  title="Configure company legal details, USDOT#, FEIN tax ID, address, and bank accounts"
+                  onClick={() => { setActiveTab('accounting'); setIsMobileMenuOpen(false); }} 
+                  className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl transition-all text-xs font-bold uppercase tracking-wider ${
+                    activeTab === 'accounting' 
+                      ? 'bg-blue-600 text-white shadow-md' 
+                      : 'hover:bg-slate-800 text-slate-300'
+                  }`}
                 >
                   <span className="flex items-center gap-3">
-                    <Building2 size={14} className="text-indigo-400" /> Company Profile
+                    <DollarSign size={16} className={activeTab === 'accounting' ? 'text-white' : 'text-emerald-400'} />
+                    Accounting & Finance
                   </span>
-                  <span className="text-[9px] bg-indigo-950 text-indigo-300 border border-indigo-800 px-1.5 py-0.5 rounded font-mono font-bold">SETUP</span>
+                  <span className="text-[9px] font-mono font-bold text-slate-400 px-1.5 py-0.5 bg-slate-800 rounded">
+                    IFTA / W2
+                  </span>
                 </button>
+
+                <div className="pt-3 border-t border-slate-800/80">
+                  <div className="text-[10px] font-bold uppercase tracking-widest text-slate-500 px-3 pb-1.5">
+                    Carrier Administration
+                  </div>
+                  <button 
+                    onClick={() => { setIsEditingCompany(true); setIsMobileMenuOpen(false); }} 
+                    className="w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl transition-all text-xs font-bold uppercase tracking-wider bg-slate-800/60 hover:bg-slate-800 text-indigo-300 border border-slate-700/60"
+                    title="Configure company legal details, USDOT#, FEIN tax ID, address, and bank accounts"
+                  >
+                    <span className="flex items-center gap-3">
+                      <Building2 size={15} className="text-indigo-400" /> Carrier Profile
+                    </span>
+                    <span className="text-[9px] bg-indigo-950 text-indigo-300 border border-indigo-800 px-1.5 py-0.5 rounded font-mono font-bold">USDOT</span>
+                  </button>
+                </div>
               </>
             ) : (
-              <>
-                <button 
-                  onClick={() => { setActiveTab('portal'); setIsMobileMenuOpen(false); }} 
-                  className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-lg transition-colors text-xs font-semibold uppercase tracking-wider ${activeTab === 'portal' ? 'bg-blue-600 text-white shadow-xs' : 'hover:bg-slate-850'}`}
-                >
-                  <Fingerprint size={14} /> My Profile Desk
-                </button>
-              </>
+              <button 
+                onClick={() => { setActiveTab('portal'); setIsMobileMenuOpen(false); }} 
+                className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl transition-colors text-xs font-semibold uppercase tracking-wider ${activeTab === 'portal' ? 'bg-blue-600 text-white shadow-xs' : 'hover:bg-slate-850'}`}
+              >
+                <Fingerprint size={16} /> My Driver Desk
+              </button>
             )}
           </nav>
 
@@ -1087,6 +1269,24 @@ export default function App() {
                   <h3 className="text-3xl font-black mt-2 text-emerald-600">{fleetHealthScore}% Pass</h3>
                 </div>
               </div>
+
+              {/* Safety Risk Heatmap Visual Card */}
+              <SafetyRiskHeatmap
+                drivers={drivers}
+                incidents={incidents}
+                onSelectDriver={(driver) => setEditingDriver(driver)}
+                onNavigateToDrivers={() => setActiveTab('drivers')}
+                currentUserId={currentUser.id}
+              />
+
+              {/* 6-Month Safety Risk Trend Line Chart */}
+              <SafetyRiskTrendChart
+                incidents={incidents}
+                onSelectDriver={(driverId) => {
+                  const d = drivers.find(dr => dr.id === driverId);
+                  if (d) setEditingDriver(d);
+                }}
+              />
 
               {/* Roster visual distribution and details */}
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
@@ -1565,6 +1765,8 @@ export default function App() {
               assignedLoads={loads}
               onUpdateLoadStatus={handleUpdateLoadStatus}
               payStubs={payStubs}
+              incidents={incidents}
+              onReportIncident={handleReportIncident}
             />
           )}
 
@@ -1574,9 +1776,11 @@ export default function App() {
               drivers={drivers} 
               loads={loads} 
               companyInfo={companyInfo}
+              incidents={incidents}
               onAddLoad={handleCreateLoad} 
               onUpdateLoadStatus={handleUpdateLoadStatus} 
               onDeleteLoad={handleDeleteLoad} 
+              onUpdateIncident={handleUpdateIncident}
               onUpdateLoadDocs={handleUpdateLoadDocs}
             />
           )}

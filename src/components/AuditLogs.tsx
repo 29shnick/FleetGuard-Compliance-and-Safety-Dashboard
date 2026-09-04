@@ -19,7 +19,7 @@ interface AuditLogsProps {
 }
 
 export default function AuditLogs({ logs, currentUser, onClear }: AuditLogsProps) {
-  const [filterType, setFilterType] = useState<'all' | 'security' | 'data_edit' | 'approval'>('all');
+  const [filterType, setFilterType] = useState<'all' | 'security' | 'data_edit' | 'approval' | 'incident'>('all');
   const [search, setSearch] = useState('');
 
   const filteredLogs = useMemo(() => {
@@ -41,6 +41,8 @@ export default function AuditLogs({ logs, currentUser, onClear }: AuditLogsProps
         return 'bg-blue-100 text-blue-800 border-blue-200';
       case 'approval':
         return 'bg-emerald-100 text-emerald-800 border-emerald-200';
+      case 'incident':
+        return 'bg-rose-100 text-rose-800 border-rose-300 font-bold';
       default:
         return 'bg-slate-100 text-slate-800 border-slate-200';
     }
@@ -84,18 +86,18 @@ export default function AuditLogs({ logs, currentUser, onClear }: AuditLogsProps
 
       {/* Filter and Search Bar */}
       <div className="flex flex-col sm:flex-row gap-3 items-center justify-between">
-        <div className="flex gap-2 w-full sm:w-auto">
-          {['all', 'security', 'data_edit', 'approval'].map((type) => (
+        <div className="flex gap-2 w-full sm:w-auto flex-wrap">
+          {['all', 'incident', 'security', 'data_edit', 'approval'].map((type) => (
             <button
               key={type}
               onClick={() => setFilterType(type as any)}
               className={`px-3 py-1.5 rounded-lg text-xs font-semibold uppercase tracking-wider transition-all border ${
                 filterType === type 
-                  ? 'bg-slate-900 text-white border-slate-900' 
+                  ? type === 'incident' ? 'bg-rose-600 text-white border-rose-600 font-black' : 'bg-slate-900 text-white border-slate-900' 
                   : 'bg-white text-slate-500 hover:text-slate-700 hover:bg-slate-50 border-slate-200'
               }`}
             >
-              {type === 'data_edit' ? 'Edits' : type}
+              {type === 'incident' ? '🚨 Roadside Incidents' : type === 'data_edit' ? 'Edits' : type}
             </button>
           ))}
         </div>

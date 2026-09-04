@@ -19,10 +19,12 @@ import {
   RefreshCw,
   FileCode,
   ShieldCheck,
-  Check
+  Check,
+  Fuel
 } from 'lucide-react';
 import { PayStub, DispatchLoad, Driver, CompanyInfo } from '../types';
 import { DEFAULT_COMPANY_INFO } from '../data';
+import IftaReportGenerator from './IftaReportGenerator';
 
 interface PayrollPortalProps {
   payStubs: PayStub[];
@@ -41,8 +43,8 @@ export default function PayrollPortal({
   companyInfo = DEFAULT_COMPANY_INFO,
   onUpdateStubStatus
 }: PayrollPortalProps) {
-  // Navigation State: 'settlements' | 'tax-forms'
-  const [activeSubTab, setActiveSubTab] = useState<'settlements' | 'tax-forms'>('settlements');
+  // Navigation State: 'settlements' | 'tax-forms' | 'ifta-report'
+  const [activeSubTab, setActiveSubTab] = useState<'settlements' | 'tax-forms' | 'ifta-report'>('settlements');
 
   // Settlements View State
   const [selectedStub, setSelectedStub] = useState<PayStub | null>(null);
@@ -65,8 +67,8 @@ export default function PayrollPortal({
 
   const [filingLogs, setFilingLogs] = useState<any[]>([
     { id: 'TX-941-2026-Q1', formName: 'Form 941 (Quarterly Federal Return)', year: '2026', quarter: 'Q1', filedAt: '2026-04-15 09:30', status: 'Accepted', confirmationNo: 'IRS-CONF-94101A' },
-    { id: 'TX-1099-James', formName: 'Form 1099-NEC (James Bond)', year: '2025', filedAt: '2026-01-28 14:22', status: 'Accepted', confirmationNo: 'IRS-CONF-109908B' },
-    { id: 'TX-W2-Nikola', formName: 'Form W-2 (Nikola Tesla)', year: '2025', filedAt: '2026-01-29 11:05', status: 'Accepted', confirmationNo: 'IRS-CONF-W29819Y' }
+    { id: 'TX-1099-James', formName: 'Form 1099-NEC (James Wilson)', year: '2025', filedAt: '2026-01-28 14:22', status: 'Accepted', confirmationNo: 'IRS-CONF-109908B' },
+    { id: 'TX-W2-Linda', formName: 'Form W-2 (Linda Garcia)', year: '2025', filedAt: '2026-01-29 11:05', status: 'Accepted', confirmationNo: 'IRS-CONF-W29819Y' }
   ]);
 
   // Computed metrics for paystubs
@@ -129,7 +131,7 @@ export default function PayrollPortal({
 
     // High fidelity default values for standard truckers if pay stubs are not yet accumulated
     const standardDefaults = {
-      'D1': { gross: 56400, miles: 28200, fed: 6768, state: 1974, ss: 3496.80, med: 817.80, net: 43343.40 },
+      'D5': { gross: 56400, miles: 28200, fed: 6768, state: 1974, ss: 3496.80, med: 817.80, net: 43343.40 },
       'D2': { gross: 48900, miles: 24450, fed: 5868, state: 1711.50, ss: 3031.80, med: 709.05, net: 37579.65 },
       'D3': { gross: 61200, miles: 30600, fed: 7344, state: 2142, ss: 3794.40, med: 887.40, net: 47032.20 }
     };
@@ -256,6 +258,18 @@ export default function PayrollPortal({
           }`}
         >
           <Sparkles className="text-amber-500 animate-pulse" size={14} /> Automated Tax Forms Hub
+        </button>
+        <button
+          onClick={() => {
+            setActiveSubTab('ifta-report');
+          }}
+          className={`pb-3 px-6 text-xs uppercase tracking-wider font-black transition-all border-b-2 flex items-center gap-2 ${
+            activeSubTab === 'ifta-report'
+              ? 'border-indigo-600 text-indigo-700'
+              : 'border-transparent text-slate-500 hover:text-slate-800'
+          }`}
+        >
+          <Fuel className="text-amber-500" size={14} /> IFTA Fuel Tax Report
         </button>
       </div>
 
@@ -777,7 +791,7 @@ export default function PayrollPortal({
                             <div className="border border-slate-300 p-1.5 rounded bg-slate-50 font-mono">
                               <span className="text-[8px] font-black uppercase text-slate-500 block">RECIPIENT'S TIN</span>
                               <strong className="text-[10px] text-slate-800">
-                                {selectedDriverIdForTax === 'D1' ? '331-XX-9812' : 
+                                {selectedDriverIdForTax === 'D5' ? '261-XX-9014' : 
                                  selectedDriverIdForTax === 'D2' ? '401-XX-2819' : '290-XX-8711'}
                               </strong>
                             </div>
@@ -854,7 +868,7 @@ export default function PayrollPortal({
                           <div className="border border-slate-300 p-1.5 rounded bg-slate-50">
                             <span className="text-[7px] font-bold text-slate-400 block">a Employee's social security number</span>
                             <strong className="text-[10px] text-slate-800 font-mono">
-                              {selectedDriverIdForTax === 'D1' ? '331-XX-9812' : 
+                              {selectedDriverIdForTax === 'D5' ? '261-XX-9014' : 
                                selectedDriverIdForTax === 'D2' ? '401-XX-2819' : '290-XX-8711'}
                             </strong>
                           </div>
@@ -1124,6 +1138,15 @@ export default function PayrollPortal({
 
           </div>
         </div>
+      )}
+
+      {/* TAB 3: IFTA FUEL TAX REPORT */}
+      {activeSubTab === 'ifta-report' && (
+        <IftaReportGenerator
+          loads={loads}
+          drivers={drivers}
+          companyInfo={companyInfo}
+        />
       )}
 
     </div>

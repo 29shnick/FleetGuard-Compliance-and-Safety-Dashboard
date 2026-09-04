@@ -26,18 +26,38 @@ import {
   RefreshCw,
   Printer,
   Download,
-  Check
+  Check,
+  AlertTriangle,
+  Wrench,
+  ShieldAlert,
+  PhoneCall,
+  Radio,
+  CheckCircle,
+  Clock,
+  Activity,
+  ChevronDown,
+  ChevronUp,
+  Shield,
+  ShieldCheck
 } from 'lucide-react';
-import { Driver, DispatchLoad, CompanyInfo } from '../types';
+import { Driver, DispatchLoad, CompanyInfo, IncidentReport } from '../types';
 import { DEFAULT_COMPANY_INFO } from '../data';
 
 interface DispatchPortalProps {
   drivers: Driver[];
   loads: DispatchLoad[];
   companyInfo?: CompanyInfo;
+  incidents?: IncidentReport[];
   onAddLoad: (load: Omit<DispatchLoad, 'id' | 'submittedAt'>) => void;
   onUpdateLoadStatus: (id: string, status: DispatchLoad['status']) => void;
   onDeleteLoad: (id: string) => void;
+  onUpdateIncident?: (
+    incidentId: string, 
+    status: IncidentReport['status'], 
+    dispatchNotes?: string, 
+    serviceVendor?: string, 
+    etaMinutes?: number
+  ) => void;
   onUpdateLoadDocs?: (
     id: string, 
     rateConFile?: { name: string; size: number; dataUrl?: string }, 
@@ -86,9 +106,11 @@ export default function DispatchPortal({
   drivers,
   loads,
   companyInfo = DEFAULT_COMPANY_INFO,
+  incidents = [],
   onAddLoad,
   onUpdateLoadStatus,
   onDeleteLoad,
+  onUpdateIncident,
   onUpdateLoadDocs
 }: DispatchPortalProps) {
   // Input fields state
@@ -99,6 +121,16 @@ export default function DispatchPortal({
   const [customDestination, setCustomDestination] = useState('');
   const [useCustomLocations, setUseCustomLocations] = useState(false);
   const [customMiles, setCustomMiles] = useState('450');
+
+  // Roadside Incident Coordination State
+  const [selectedIncidentId, setSelectedIncidentId] = useState<string | null>(null);
+  const [isIncidentFeedOpen, setIsIncidentFeedOpen] = useState(true);
+  const [incidentVendor, setIncidentVendor] = useState('');
+  const [incidentEta, setIncidentEta] = useState<number | ''>('');
+  const [incidentNotes, setIncidentNotes] = useState('');
+  const [incidentStatus, setIncidentStatus] = useState<IncidentReport['status']>('In Progress - Assistance Dispatched');
+  const [incidentSuccessMsg, setIncidentSuccessMsg] = useState('');
+  const [incidentFilter, setIncidentFilter] = useState<'ACTIVE' | 'ALL' | 'RESOLVED'>('ACTIVE');
 
   const [cargoType, setCargoType] = useState('Dry Van General');
   const [weightLbs, setWeightLbs] = useState('32000');
@@ -388,6 +420,44 @@ export default function DispatchPortal({
     });
   }, [loads, loadSearch, loadStatusFilter]);
 
+  // Roadside incident calculations & handlers
+  const activeIncidents = useMemo(() => {
+    return incidents.filter(i => i.status !== 'Resolved / Cleared');
+  }, [incidents]);
+
+  const filteredIncidents = useMemo(() => {
+    return incidents.filter(i => {
+      if (incidentFilter === 'ACTIVE') return i.status !== 'Resolved / Cleared';
+      if (incidentFilter === 'RESOLVED') return i.status === 'Resolved / Cleared';
+      return true;
+    });
+  }, [incidents, incidentFilter]);
+
+  const handleStartCoordinating = (incident: IncidentReport) => {
+    setSelectedIncidentId(incident.id);
+    setIncidentVendor(incident.serviceVendor || '');
+    setIncidentEta(incident.etaMinutes ?? '');
+    setIncidentNotes(incident.dispatchNotes || '');
+    setIncidentStatus(incident.status);
+  };
+
+  const handleSaveIncidentCoordination = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedIncidentId || !onUpdateIncident) return;
+
+    onUpdateIncident(
+      selectedIncidentId,
+      incidentStatus,
+      incidentNotes,
+      incidentVendor || undefined,
+      typeof incidentEta === 'number' ? incidentEta : undefined
+    );
+
+    setIncidentSuccessMsg(`Assistance coordination updated for incident ${selectedIncidentId}! Logged to Audit Trail.`);
+    setTimeout(() => setIncidentSuccessMsg(''), 4500);
+    setSelectedIncidentId(null);
+  };
+
   return (
     <div className="space-y-8 max-w-7xl mx-auto">
       {/* Dashboard Headline */}
@@ -426,9 +496,390 @@ export default function DispatchPortal({
           <p className="text-2xl font-black text-emerald-600 font-mono">{dispatchStats.totalMiles.toLocaleString()} mi</p>
         </div>
         <div className="bg-white p-4.5 rounded-xl border border-slate-200">
-          <p className="text-slate-500 text-[10px] font-bold uppercase tracking-widest mb-1">Total Booked Gross Value</p>
-          <p className="text-2xl font-black text-slate-850 font-mono">${dispatchStats.totalPayoutValue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+          <div className="flex justify-between items-start">
+            <div>
+              <p className="text-slate-500 text-[10px] font-bold uppercase tracking-widest mb-1">Roadside Incidents</p>
+              <p className={`text-2xl font-black ${activeIncidents.length > 0 ? 'text-rose-600' : 'text-slate-700'}`}>
+                {activeIncidents.length} Active {activeIncidents.length > 0 && '🚨'}
+              </p>
+            </div>
+            {activeIncidents.length > 0 && (
+              <span className="bg-rose-100 text-rose-700 text-[10px] font-black px-2 py-0.5 rounded-full border border-rose-200 animate-pulse uppercase">
+                Action Required
+              </span>
+            )}
+          </div>
         </div>
+      </div>
+
+      {/* Success alert message for incident coordination */}
+      {incidentSuccessMsg && (
+        <div className="bg-emerald-50 border border-emerald-300 text-emerald-900 px-4 py-3 rounded-xl text-xs font-bold flex items-center justify-between shadow-xs animate-fade-in">
+          <div className="flex items-center gap-2">
+            <CheckCircle size={16} className="text-emerald-600" />
+            <span>{incidentSuccessMsg}</span>
+          </div>
+          <span className="text-[10px] text-emerald-700 font-mono uppercase">Audit Trail Updated</span>
+        </div>
+      )}
+
+      {/* Roadside Emergency & Incident Coordination Board */}
+      <div className={`rounded-2xl border transition-all overflow-hidden ${
+        activeIncidents.length > 0 
+          ? 'bg-rose-50/40 border-rose-300 shadow-md ring-1 ring-rose-300' 
+          : 'bg-white border-slate-200 shadow-xs'
+      }`}>
+        <div className="p-5 sm:p-6 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b border-slate-150">
+          <div className="flex items-start gap-3">
+            <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${
+              activeIncidents.length > 0 
+                ? 'bg-rose-600 text-white shadow-md animate-pulse' 
+                : 'bg-slate-100 text-slate-700'
+            }`}>
+              <AlertTriangle size={20} />
+            </div>
+            <div>
+              <div className="flex items-center gap-2 flex-wrap">
+                <h2 className="text-base font-black text-slate-900 tracking-tight">
+                  Roadside Emergency & Incident Dispatch Desk
+                </h2>
+                {activeIncidents.length > 0 ? (
+                  <span className="bg-rose-600 text-white text-[10px] font-black uppercase px-2.5 py-0.5 rounded-full animate-pulse">
+                    {activeIncidents.length} Urgent Event{activeIncidents.length > 1 ? 's' : ''}
+                  </span>
+                ) : (
+                  <span className="bg-emerald-100 text-emerald-800 text-[10px] font-bold px-2 py-0.5 rounded-full border border-emerald-200">
+                    All Nominal
+                  </span>
+                )}
+              </div>
+              <p className="text-xs text-slate-500 mt-0.5">
+                Real-time roadside breakdown, flat tire, accident, and DOT inspection event notifications reported by active drivers.
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2 w-full sm:w-auto justify-between sm:justify-end">
+            <div className="flex gap-1 bg-white p-1 rounded-lg border border-slate-200 text-[10px] font-bold uppercase">
+              <button
+                onClick={() => setIncidentFilter('ACTIVE')}
+                className={`px-2.5 py-1 rounded transition-colors ${
+                  incidentFilter === 'ACTIVE' ? 'bg-slate-900 text-white' : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                Active ({activeIncidents.length})
+              </button>
+              <button
+                onClick={() => setIncidentFilter('ALL')}
+                className={`px-2.5 py-1 rounded transition-colors ${
+                  incidentFilter === 'ALL' ? 'bg-slate-900 text-white' : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                All ({incidents.length})
+              </button>
+              <button
+                onClick={() => setIncidentFilter('RESOLVED')}
+                className={`px-2.5 py-1 rounded transition-colors ${
+                  incidentFilter === 'RESOLVED' ? 'bg-slate-900 text-white' : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                Resolved ({incidents.filter(i => i.status === 'Resolved / Cleared').length})
+              </button>
+            </div>
+
+            <button
+              onClick={() => setIsIncidentFeedOpen(!isIncidentFeedOpen)}
+              className="p-1.5 rounded-lg bg-white border border-slate-200 text-slate-600 hover:bg-slate-100 transition-colors"
+              title={isIncidentFeedOpen ? 'Collapse incident desk' : 'Expand incident desk'}
+            >
+              {isIncidentFeedOpen ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+            </button>
+          </div>
+        </div>
+
+        {isIncidentFeedOpen && (
+          <div className="p-5 sm:p-6 space-y-4">
+            {filteredIncidents.length === 0 ? (
+              <div className="text-center py-6 text-xs text-slate-400 space-y-1">
+                <ShieldCheck size={28} className="mx-auto text-emerald-600" />
+                <p className="font-extrabold uppercase text-[10px] text-slate-600">No Roadside Incidents Reported</p>
+                <p className="text-slate-400 max-w-md mx-auto">
+                  No active incidents under the "{incidentFilter.toLowerCase()}" filter. Drivers can report events from their driver portal, which will instantly trigger alerts here and record in the Audit Trail.
+                </p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                {filteredIncidents.map((incident) => {
+                  const isSelected = selectedIncidentId === incident.id;
+
+                  return (
+                    <div
+                      key={incident.id}
+                      className={`p-4 rounded-xl border text-xs transition-all space-y-3 ${
+                        incident.status === 'Open - Dispatch Action Required'
+                          ? 'bg-rose-50/80 border-rose-300 shadow-xs'
+                          : incident.status === 'In Progress - Assistance Dispatched'
+                          ? 'bg-amber-50/70 border-amber-300'
+                          : 'bg-white border-slate-200'
+                      }`}
+                    >
+                      {/* Top Header */}
+                      <div className="flex justify-between items-start gap-2">
+                        <div>
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            <span className="font-mono font-black text-slate-900 bg-white px-2 py-0.5 rounded border border-slate-200 text-[11px]">
+                              {incident.id}
+                            </span>
+                            <span className="font-bold text-slate-900">
+                              {incident.type}
+                            </span>
+                            <span className={`px-2 py-0.5 rounded text-[9px] font-black uppercase ${
+                              incident.severity === 'Critical' ? 'bg-rose-600 text-white' :
+                              incident.severity === 'Major' ? 'bg-amber-500 text-slate-950' :
+                              'bg-blue-600 text-white'
+                            }`}>
+                              {incident.severity}
+                            </span>
+                          </div>
+                          <span className="text-[10px] text-slate-500 block mt-0.5">
+                            Reported at {incident.reportedAt}
+                          </span>
+                        </div>
+
+                        <span className={`px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-wider shrink-0 flex items-center gap-1 ${
+                          incident.status === 'Open - Dispatch Action Required'
+                            ? 'bg-rose-600 text-white animate-pulse'
+                            : incident.status === 'In Progress - Assistance Dispatched'
+                            ? 'bg-amber-500 text-slate-950 font-bold'
+                            : 'bg-emerald-600 text-white'
+                        }`}>
+                          {incident.status === 'In Progress - Assistance Dispatched' && <Wrench size={11} />}
+                          {incident.status === 'Resolved / Cleared' && <CheckCircle size={11} />}
+                          {incident.status}
+                        </span>
+                      </div>
+
+                      {/* Details Strip */}
+                      <div className="bg-white p-3 rounded-lg border border-slate-150 space-y-1.5">
+                        <div className="flex items-start gap-1.5 text-slate-800 font-semibold">
+                          <MapPin size={13} className="text-rose-600 shrink-0 mt-0.5" />
+                          <span>{incident.location}</span>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-2 text-[10px] text-slate-600 border-t border-slate-100 pt-1.5">
+                          <div>
+                            <span className="text-slate-400 block font-bold uppercase text-[9px]">Driver & Equipment</span>
+                            <span className="font-bold text-slate-900">{incident.driverName}</span>
+                            <span className="block font-mono text-slate-600">Truck: {incident.truckId} {incident.loadId ? `• Load: ${incident.loadId}` : ''}</span>
+                          </div>
+
+                          <div>
+                            <span className="text-slate-400 block font-bold uppercase text-[9px]">Driver Callback</span>
+                            {incident.driverPhone ? (
+                              <a
+                                href={`tel:${incident.driverPhone}`}
+                                className="font-mono text-blue-600 hover:text-blue-800 font-bold flex items-center gap-1"
+                              >
+                                <PhoneCall size={11} /> {incident.driverPhone}
+                              </a>
+                            ) : (
+                              <span className="text-slate-400 font-mono">No direct phone</span>
+                            )}
+                          </div>
+                        </div>
+
+                        <div className="flex items-center gap-3 text-[10px] border-t border-slate-100 pt-1 text-slate-600">
+                          <span className={incident.isVehicleDrivable ? 'text-emerald-700 font-bold' : 'text-rose-700 font-bold'}>
+                            {incident.isVehicleDrivable ? '✓ Drivable' : '✕ Immobilized'}
+                          </span>
+                          <span>•</span>
+                          <span className={incident.injuriesReported ? 'text-rose-700 font-black' : 'text-slate-600'}>
+                            {incident.injuriesReported ? '🚨 Injuries Reported' : 'No Injuries'}
+                          </span>
+                          <span>•</span>
+                          <span>
+                            {incident.policeContacted ? `Police on Scene (${incident.policeReportNumber || 'Unit Dispatched'})` : 'No Police Dispatched'}
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Driver's Statement */}
+                      <p className="text-slate-700 bg-white/60 p-2.5 rounded-lg border border-slate-150 text-[11px] leading-relaxed">
+                        <strong className="text-slate-900 font-bold">Driver Statement:</strong> {incident.description}
+                      </p>
+
+                      {/* Requested Services */}
+                      {incident.assistanceNeeded.length > 0 && (
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          <span className="text-[10px] text-slate-500 font-bold">Requested Assistance:</span>
+                          {incident.assistanceNeeded.map((serv, idx) => (
+                            <span key={idx} className="bg-white border border-slate-200 text-slate-800 px-2 py-0.5 rounded text-[10px] font-semibold">
+                              {serv}
+                            </span>
+                          ))}
+                        </div>
+                      )}
+
+                      {/* Attached scene photos simulation */}
+                      {incident.photos && incident.photos.length > 0 && (
+                        <div className="flex items-center gap-2 flex-wrap text-[10px] text-slate-500">
+                          <span className="font-bold">Attached Evidence:</span>
+                          {incident.photos.map((p, idx) => (
+                            <span key={idx} className="bg-white border border-slate-200 text-blue-700 px-2 py-0.5 rounded font-mono">
+                              📎 {p.name}
+                            </span>
+                          ))}
+                        </div>
+                      )}
+
+                      {/* Current Coordination Status */}
+                      {(incident.serviceVendor || incident.dispatchNotes) && (
+                        <div className="bg-white border border-indigo-200 p-2.5 rounded-lg space-y-1">
+                          <div className="flex items-center justify-between text-[11px] font-bold text-indigo-950">
+                            <span className="flex items-center gap-1 text-indigo-700">
+                              <Wrench size={12} /> Assigned Assistance: {incident.serviceVendor || 'Pending'}
+                            </span>
+                            {incident.etaMinutes && (
+                              <span className="font-mono text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded border border-indigo-100 text-[10px]">
+                                ETA: {incident.etaMinutes} mins
+                              </span>
+                            )}
+                          </div>
+                          {incident.dispatchNotes && (
+                            <p className="text-[10.5px] text-slate-600 italic">
+                              "{incident.dispatchNotes}"
+                            </p>
+                          )}
+                        </div>
+                      )}
+
+                      {/* Action Button to Open Coordination Form */}
+                      <div className="pt-1 flex justify-end">
+                        <button
+                          onClick={() => isSelected ? setSelectedIncidentId(null) : handleStartCoordinating(incident)}
+                          className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 ${
+                            isSelected
+                              ? 'bg-slate-800 text-white'
+                              : 'bg-rose-600 hover:bg-rose-500 text-white shadow-xs'
+                          }`}
+                        >
+                          <Wrench size={13} />
+                          {isSelected ? 'Close Coordination Tool' : 'Coordinate Roadside Assistance'}
+                        </button>
+                      </div>
+
+                      {/* Inline Dispatch Coordination Tool */}
+                      {isSelected && (
+                        <form onSubmit={handleSaveIncidentCoordination} className="bg-white p-4 rounded-xl border-2 border-indigo-400 space-y-3 mt-2 shadow-md">
+                          <div className="flex justify-between items-center pb-2 border-b border-slate-150">
+                            <h4 className="font-black text-slate-900 text-xs uppercase tracking-wider flex items-center gap-1.5">
+                              <Activity size={14} className="text-indigo-600" />
+                              Dispatch Assistance Triage ({incident.id})
+                            </h4>
+                            <span className="text-[10px] text-slate-400">Updates sync to Driver Portal & Audit Trail</span>
+                          </div>
+
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                            <div>
+                              <label className="block text-slate-700 font-bold mb-1 text-[10px] uppercase">
+                                Update Incident Status:
+                              </label>
+                              <select
+                                value={incidentStatus}
+                                onChange={(e) => setIncidentStatus(e.target.value as any)}
+                                className="w-full bg-slate-50 border border-slate-300 rounded-lg px-2.5 py-1.5 font-bold text-xs text-slate-900 focus:bg-white outline-none"
+                              >
+                                <option value="Open - Dispatch Action Required">Open - Dispatch Action Required</option>
+                                <option value="In Progress - Assistance Dispatched">In Progress - Assistance Dispatched</option>
+                                <option value="Resolved / Cleared">Resolved / Cleared</option>
+                              </select>
+                            </div>
+
+                            <div>
+                              <label className="block text-slate-700 font-bold mb-1 text-[10px] uppercase">
+                                Vendor Estimated ETA (minutes):
+                              </label>
+                              <input
+                                type="number"
+                                min="0"
+                                max="360"
+                                placeholder="e.g. 30"
+                                value={incidentEta}
+                                onChange={(e) => setIncidentEta(e.target.value === '' ? '' : parseInt(e.target.value))}
+                                className="w-full bg-slate-50 border border-slate-300 rounded-lg px-2.5 py-1.5 text-xs font-mono font-bold text-slate-900 focus:bg-white outline-none"
+                              />
+                            </div>
+
+                            <div className="sm:col-span-2">
+                              <label className="block text-slate-700 font-bold mb-1 text-[10px] uppercase">
+                                Roadside Service Vendor / Towing Company:
+                              </label>
+                              <input
+                                type="text"
+                                placeholder="e.g. Love's Truck Tire Care (Davenport, IA) - Unit #4"
+                                value={incidentVendor}
+                                onChange={(e) => setIncidentVendor(e.target.value)}
+                                className="w-full bg-slate-50 border border-slate-300 rounded-lg px-2.5 py-1.5 text-xs text-slate-900 focus:bg-white outline-none"
+                              />
+                              <div className="flex gap-1.5 mt-1.5 flex-wrap">
+                                {[
+                                  "Love's Truck Tire Care",
+                                  "TA RoadSquad Mobile",
+                                  "Pilot Flying J Roadside",
+                                  "Heavy Duty Towing Pros",
+                                  "Freightliner Mobile Tech"
+                                ].map(preset => (
+                                  <button
+                                    type="button"
+                                    key={preset}
+                                    onClick={() => setIncidentVendor(preset)}
+                                    className="text-[9px] bg-slate-100 hover:bg-slate-200 text-slate-700 px-2 py-0.5 rounded transition-colors"
+                                  >
+                                    + {preset}
+                                  </button>
+                                ))}
+                              </div>
+                            </div>
+
+                            <div className="sm:col-span-2">
+                              <label className="block text-slate-700 font-bold mb-1 text-[10px] uppercase">
+                                Dispatch Coordination Notes (visible to driver):
+                              </label>
+                              <textarea
+                                rows={2}
+                                placeholder="Enter instructions for driver: technician en route, ETA, shoulder safety check, load transfer arrangements..."
+                                value={incidentNotes}
+                                onChange={(e) => setIncidentNotes(e.target.value)}
+                                className="w-full bg-slate-50 border border-slate-300 rounded-lg p-2.5 text-xs text-slate-900 focus:bg-white outline-none"
+                              />
+                            </div>
+                          </div>
+
+                          <div className="flex justify-end gap-2 pt-2 border-t border-slate-150">
+                            <button
+                              type="button"
+                              onClick={() => setSelectedIncidentId(null)}
+                              className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-lg text-xs"
+                            >
+                              Cancel
+                            </button>
+                            <button
+                              type="submit"
+                              className="px-4 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white font-extrabold rounded-lg text-xs uppercase tracking-wider shadow-sm flex items-center gap-1.5"
+                            >
+                              <Check size={13} />
+                              Save & Notify Driver
+                            </button>
+                          </div>
+                        </form>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
@@ -806,6 +1257,45 @@ export default function DispatchPortal({
                         </button>
                       </div>
                     </div>
+
+                    {/* Roadside Incident Alert linked to this freight / vehicle */}
+                    {incidents
+                      .filter(i => 
+                        (i.loadId === load.id || 
+                         (load.truckId && load.truckId !== 'None' && i.truckId === load.truckId) || 
+                         (load.driverId && load.driverId !== 'Unassigned' && i.driverId === load.driverId)) && 
+                        i.status !== 'Resolved / Cleared'
+                      )
+                      .map(inc => (
+                        <div key={inc.id} className="bg-rose-50 border border-rose-300 rounded-xl p-3 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 shadow-xs">
+                          <div className="flex items-center gap-2.5">
+                            <AlertTriangle size={17} className="text-rose-600 animate-pulse shrink-0" />
+                            <div>
+                              <div className="flex items-center gap-1.5 flex-wrap">
+                                <span className="font-extrabold uppercase text-[10px] text-rose-700 bg-rose-100 px-1.5 py-0.5 rounded">
+                                  🚨 Roadside Incident ({inc.type})
+                                </span>
+                                <span className="font-bold text-slate-900 text-xs">{inc.location}</span>
+                              </div>
+                              <p className="text-[11px] text-rose-900 mt-0.5">
+                                Status: <strong className="uppercase">{inc.status}</strong>
+                                {inc.serviceVendor && ` • Vendor: ${inc.serviceVendor}`}
+                                {inc.etaMinutes && ` • ETA: ${inc.etaMinutes}m`}
+                              </p>
+                            </div>
+                          </div>
+                          <button
+                            onClick={() => {
+                              handleStartCoordinating(inc);
+                              setIsIncidentFeedOpen(true);
+                              window.scrollTo({ top: 180, behavior: 'smooth' });
+                            }}
+                            className="text-[10px] font-extrabold bg-rose-600 hover:bg-rose-700 text-white px-3 py-1.5 rounded-lg transition-colors shrink-0 uppercase tracking-wider shadow-xs"
+                          >
+                            Coordinate Roadside
+                          </button>
+                        </div>
+                      ))}
 
                     {/* Geography route path visually represented */}
                     <div className="bg-slate-50/70 p-3 rounded-lg border border-slate-150 relative">
