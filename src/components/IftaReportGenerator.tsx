@@ -23,7 +23,7 @@ import {
   HelpCircle,
   FileCheck
 } from 'lucide-react';
-import { DispatchLoad, Driver, Vehicle, CompanyInfo, IftaJurisdictionRecord, IftaQuarterlyReport } from '../types';
+import { DispatchLoad, Driver, Vehicle, CompanyInfo, IftaJurisdictionRecord, IftaQuarterlyReport, FuelTransaction } from '../types';
 import { 
   IFTA_STATE_RATES, 
   decomposeLoadMilesByState, 
@@ -32,19 +32,24 @@ import {
   SUPPLEMENTARY_IFTA_LOADS 
 } from '../utils/iftaEngine';
 import { generateIftaPdf } from '../utils/iftaPdfExport';
+import FuelCsvUploaderModal from './FuelCsvUploaderModal';
 
 interface IftaReportGeneratorProps {
   loads: DispatchLoad[];
   drivers: Driver[];
   vehicles?: Vehicle[];
   companyInfo: CompanyInfo;
+  fuelTransactions?: FuelTransaction[];
+  onUploadFuelTransactions?: (transactions: FuelTransaction[]) => void;
 }
 
 export default function IftaReportGenerator({
   loads,
   drivers,
   vehicles = [],
-  companyInfo
+  companyInfo,
+  fuelTransactions = [],
+  onUploadFuelTransactions
 }: IftaReportGeneratorProps) {
   // Quarter & Year Selection
   const [selectedYear, setSelectedYear] = useState<string>('2026');
@@ -65,6 +70,7 @@ export default function IftaReportGenerator({
   // Modal / Drawer state for inspecting state load details
   const [inspectingState, setInspectingState] = useState<IftaJurisdictionRecord | null>(null);
   const [isPreviewModalOpen, setIsPreviewModalOpen] = useState<boolean>(false);
+  const [isFuelCsvModalOpen, setIsFuelCsvModalOpen] = useState<boolean>(false);
   const [exportSuccessMsg, setExportSuccessMsg] = useState<string>('');
   const [editingFuelState, setEditingFuelState] = useState<string | null>(null);
   const [tempFuelVal, setTempFuelVal] = useState<string>('');
@@ -245,6 +251,24 @@ export default function IftaReportGenerator({
     setTempFuelVal('');
   };
 
+  const handleImportFuelCsv = (transactions: FuelTransaction[]) => {
+    const byState: Record<string, number> = {};
+    transactions.forEach(t => {
+      byState[t.stateCode] = (byState[t.stateCode] || 0) + t.gallons;
+    });
+
+    setFuelPurchases(prev => ({
+      ...prev,
+      ...byState
+    }));
+
+    if (onUploadFuelTransactions) {
+      onUploadFuelTransactions(transactions);
+    }
+
+    setExportSuccessMsg(`Successfully ingested ${transactions.length} fuel transactions from CSV! State tax-paid gallons and IFTA tax balances updated.`);
+  };
+
   // Distinct truck IDs from loads
   const availableTrucks = useMemo(() => {
     const set = new Set<string>();
@@ -277,7 +301,14 @@ export default function IftaReportGenerator({
             </p>
           </div>
 
-          <div className="flex items-center gap-2.5 w-full md:w-auto">
+          <div className="flex items-center gap-2.5 w-full md:w-auto flex-wrap sm:flex-nowrap">
+            <button
+              onClick={() => setIsFuelCsvModalOpen(true)}
+              className="flex-1 md:flex-none px-4 py-2.5 bg-amber-500 hover:bg-amber-400 text-slate-950 rounded-xl text-xs font-black uppercase tracking-wider transition-all flex items-center justify-center gap-1.5 shadow-md hover:scale-[1.02] active:scale-[0.98]"
+              title="Upload fuel account CSV (EFS, Fleet One, Comdata, Wex)"
+            >
+              <Fuel size={15} /> Upload Fuel CSV
+            </button>
             <button
               onClick={() => setIsPreviewModalOpen(true)}
               className="flex-1 md:flex-none px-4 py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 shadow-sm"
@@ -993,6 +1024,15 @@ export default function IftaReportGenerator({
             </div>
           </div>
         </div>
+      )}
+
+      {/* Fuel Account CSV Uploader Modal */}
+      {isFuelCsvModalOpen && (
+        <FuelCsvUploaderModal
+          isOpen={isFuelCsvModalOpen}
+          onClose={() => setIsFuelCsvModalOpen(false)}
+          onImportFuelTransactions={handleImportFuelCsv}
+        />
       )}
     </div>
   );

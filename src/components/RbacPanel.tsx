@@ -8,7 +8,10 @@ import {
   Info, 
   UserCheck, 
   AlertCircle,
-  Clock
+  Clock,
+  Monitor,
+  Smartphone,
+  MonitorSmartphone
 } from 'lucide-react';
 import { UserSession, UserRole, Driver, RenewalRequest } from '../types';
 import AlertsDropdown from './AlertsDropdown';
@@ -16,9 +19,9 @@ import AlertsDropdown from './AlertsDropdown';
 export const SIMULATED_USERS: UserSession[] = [
   { id: 'admin-alice', name: 'Alice Vance', role: 'Safety Manager & CEO' },
   { id: 'dispatcher-bob', name: 'Bob Carter', role: 'Dispatcher' },
+  { id: 'D5', name: 'Linda Garcia', role: 'Driver', driverId: 'D5' },
   { id: 'D2', name: 'James Wilson', role: 'Driver', driverId: 'D2' },
   { id: 'D4', name: 'Robert Brown', role: 'Driver', driverId: 'D4' },
-  { id: 'D5', name: 'Linda Garcia', role: 'Driver', driverId: 'D5' },
 ];
 
 interface RbacPanelProps {
@@ -31,6 +34,8 @@ interface RbacPanelProps {
   onNavigateToTab?: (tab: string) => void;
   onSubmitRenewal?: (driverId: string, type: 'CDL' | 'Medical Cert', date: string) => void;
   onLogSecurityAction?: (action: string, details: string, type: 'security' | 'data_edit' | 'approval' | 'incident') => void;
+  viewportMode?: 'auto' | 'desktop' | 'mobile';
+  onViewportModeChange?: (mode: 'auto' | 'desktop' | 'mobile') => void;
 }
 
 export default function RbacPanel({ 
@@ -42,7 +47,9 @@ export default function RbacPanel({
   onInspectDriver,
   onNavigateToTab,
   onSubmitRenewal,
-  onLogSecurityAction
+  onLogSecurityAction,
+  viewportMode = 'auto',
+  onViewportModeChange
 }: RbacPanelProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [showGuide, setShowGuide] = useState(false);
@@ -108,8 +115,47 @@ export default function RbacPanel({
       </div>
 
       {/* Selector dropdown and rules guidelines */}
-      <div className="flex flex-wrap items-center gap-3 relative">
-        <div className="flex items-center gap-1.5 text-xs text-slate-400 font-mono bg-slate-50 px-2 py-1 rounded border border-slate-200">
+      <div className="flex flex-wrap items-center gap-2.5 relative">
+        {/* Device Viewport Mode Switcher */}
+        {onViewportModeChange && (
+          <div className="flex items-center bg-slate-100 p-0.5 rounded-lg border border-slate-200 text-xs">
+            <button
+              type="button"
+              onClick={() => onViewportModeChange('auto')}
+              className={`px-2 py-1 rounded-md text-[11px] font-bold flex items-center gap-1 transition-all ${
+                viewportMode === 'auto' ? 'bg-white text-blue-700 shadow-xs' : 'text-slate-500 hover:text-slate-800'
+              }`}
+              title="Auto Fluid Responsive View"
+            >
+              <MonitorSmartphone size={13} />
+              <span className="hidden sm:inline">Auto</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => onViewportModeChange('desktop')}
+              className={`px-2 py-1 rounded-md text-[11px] font-bold flex items-center gap-1 transition-all ${
+                viewportMode === 'desktop' ? 'bg-white text-blue-700 shadow-xs' : 'text-slate-500 hover:text-slate-800'
+              }`}
+              title="Full Desktop Version"
+            >
+              <Monitor size={13} />
+              <span className="hidden sm:inline">Desktop</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => onViewportModeChange('mobile')}
+              className={`px-2 py-1 rounded-md text-[11px] font-bold flex items-center gap-1 transition-all ${
+                viewportMode === 'mobile' ? 'bg-white text-blue-700 shadow-xs' : 'text-slate-500 hover:text-slate-800'
+              }`}
+              title="Mobile Phone Version"
+            >
+              <Smartphone size={13} />
+              <span className="hidden sm:inline">Mobile</span>
+            </button>
+          </div>
+        )}
+
+        <div className="hidden md:flex items-center gap-1.5 text-xs text-slate-400 font-mono bg-slate-50 px-2 py-1 rounded border border-slate-200">
           <Clock size={12} />
           <span>{currentMockTime} UTC</span>
         </div>

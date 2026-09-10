@@ -1,4 +1,15 @@
-import { Driver, Vehicle, Alert, ComplianceStatus, CompanyInfo, IncidentReport, HistoricalViolation } from './types';
+import { 
+  Driver, 
+  Vehicle, 
+  Alert, 
+  ComplianceStatus, 
+  CompanyInfo, 
+  IncidentReport, 
+  HistoricalViolation,
+  MaintenanceInvoice,
+  DriverExpense,
+  FuelTransaction
+} from './types';
 
 export const DEFAULT_COMPANY_INFO: CompanyInfo = {
   legalName: 'FastGate Logistics Inc.',
@@ -704,3 +715,163 @@ export const HISTORICAL_VIOLATIONS: HistoricalViolation[] = [
     location: 'Colorado DOT Roadside Checkpoint'
   }
 ];
+
+export const MOCK_MAINTENANCE_INVOICES: MaintenanceInvoice[] = [
+  {
+    id: 'INV-M101',
+    vehicleId: 'V1',
+    unitNumber: 'TRK-101',
+    invoiceNumber: 'WO-89421',
+    date: '2026-05-18',
+    vendorName: 'Speedco Truck Lube #302',
+    serviceType: 'Oil Change & PM',
+    amount: 485.50,
+    odometerReading: 64800,
+    notes: 'Full synthetic 15W-40 oil change, 3 oil filters, fuel/water separator replacement, chassis grease.',
+    submittedBy: 'Alice Johnson',
+    submittedAt: '2026-05-18 16:45',
+    receiptFile: { name: 'Speedco_PM_Invoice_TRK101.pdf', size: 245000 }
+  },
+  {
+    id: 'INV-M102',
+    vehicleId: 'V2',
+    unitNumber: 'TRK-202',
+    invoiceNumber: 'TA-98102',
+    date: '2026-05-12',
+    vendorName: 'TA Truck Service - Gary IN',
+    serviceType: 'Brakes & Air System',
+    amount: 1420.00,
+    odometerReading: 124200,
+    notes: 'Replaced rear drive axle brake drums, S-cam bushings, and Type 30/30 brake chambers.',
+    submittedBy: 'Bob Martinez',
+    submittedAt: '2026-05-12 18:30',
+    receiptFile: { name: 'TA_BrakeService_TRK202.pdf', size: 312000 }
+  },
+  {
+    id: 'INV-M103',
+    vehicleId: 'V3',
+    unitNumber: 'TRK-303',
+    invoiceNumber: 'RC-55192',
+    date: '2026-05-02',
+    vendorName: 'Rush Truck Centers - Chicago',
+    serviceType: 'DOT Annual Periodic Inspection',
+    amount: 320.00,
+    odometerReading: 244500,
+    notes: 'Annual FMCSA 396.17 periodic inspection completed. Passed all lighting, brake stroke, and kingpin checks.',
+    submittedBy: 'Alice Johnson',
+    submittedAt: '2026-05-02 11:20',
+    receiptFile: { name: 'DOT_Inspection_TRK303.pdf', size: 198000 }
+  },
+  {
+    id: 'INV-M104',
+    vehicleId: 'V4',
+    unitNumber: 'TRK-404',
+    invoiceNumber: 'LV-44910',
+    date: '2026-04-28',
+    vendorName: "Love's Truck Care #412",
+    serviceType: 'Tires & Alignment',
+    amount: 1150.00,
+    odometerReading: 81500,
+    notes: 'Two Michelin X-Line Energy Steer Tires mounted, balanced, and 3-axle laser alignment completed.',
+    submittedBy: 'Bob Martinez',
+    submittedAt: '2026-04-28 14:15',
+    receiptFile: { name: 'Loves_SteerTires_TRK404.pdf', size: 280000 }
+  },
+  {
+    id: 'INV-M105',
+    vehicleId: 'V1',
+    unitNumber: 'TRK-101',
+    invoiceNumber: 'FL-20419',
+    date: '2026-03-10',
+    vendorName: 'Freightliner of Chicago',
+    serviceType: 'Engine Repair',
+    amount: 2180.00,
+    odometerReading: 60200,
+    notes: 'Replaced EGR differential pressure sensor and cleaned DPF particulate filter elements.',
+    submittedBy: 'Alice Johnson',
+    submittedAt: '2026-03-10 17:00',
+    receiptFile: { name: 'Freightliner_DPF_TRK101.pdf', size: 410000 }
+  }
+];
+
+export const MOCK_DRIVER_EXPENSES: DriverExpense[] = [
+  {
+    id: 'EXP-D1',
+    driverId: 'D2',
+    driverName: 'James Wilson',
+    date: '2026-05-22',
+    category: 'Scale (CAT Scale)',
+    amount: 14.50,
+    loadNumber: 'LD-3942',
+    description: 'CAT Scale certified gross weight verification at Pilot Travel Center I-80 exit 122.',
+    status: 'Approved',
+    reimbursedInPayStubId: 'PS-1',
+    submittedAt: '2026-05-22 14:20',
+    receiptFile: { name: 'CATScale_Ticket_LD3942.jpg', size: 142000 }
+  },
+  {
+    id: 'EXP-D2',
+    driverId: 'D5',
+    driverName: 'Linda Garcia',
+    date: '2026-05-23',
+    category: 'Lumper Fee',
+    amount: 185.00,
+    loadNumber: 'LD-2051',
+    description: 'Grocery warehouse inbound pallet unload lumper fee paid at Sysco Cold Logistics.',
+    status: 'Approved',
+    reimbursedInPayStubId: 'PS-2',
+    submittedAt: '2026-05-23 08:45',
+    receiptFile: { name: 'Sysco_Lumper_Receipt_2051.pdf', size: 195000 }
+  },
+  {
+    id: 'EXP-D3',
+    driverId: 'D2',
+    driverName: 'James Wilson',
+    date: '2026-05-24',
+    category: 'Tolls & Turnpike',
+    amount: 48.00,
+    loadNumber: 'LD-3942',
+    description: 'Pennsylvania Turnpike cash toll lane detour due to bridge clearance restriction.',
+    status: 'Pending',
+    submittedAt: '2026-05-24 16:30',
+    receiptFile: { name: 'PA_Turnpike_Toll_Receipt.jpg', size: 110000 }
+  },
+  {
+    id: 'EXP-D4',
+    driverId: 'D4',
+    driverName: 'Robert Brown',
+    date: '2026-05-21',
+    category: 'Trailer Washout',
+    amount: 65.00,
+    description: 'Food-grade sanitizing reefer trailer washout before produce pickup at Blue Beacon.',
+    status: 'Pending',
+    submittedAt: '2026-05-21 11:15',
+    receiptFile: { name: 'BlueBeacon_Washout_Receipt.pdf', size: 155000 }
+  },
+  {
+    id: 'EXP-D5',
+    driverId: 'D5',
+    driverName: 'Linda Garcia',
+    date: '2026-05-20',
+    category: 'DEF / Fluids',
+    amount: 38.50,
+    loadNumber: 'LD-2051',
+    description: 'Two 2.5-gal jugs of BlueDEF bulk exhaust fluid at Flying J.',
+    status: 'Approved',
+    reimbursedInPayStubId: 'PS-2',
+    submittedAt: '2026-05-20 19:10',
+    receiptFile: { name: 'FlyingJ_DEF_Receipt.jpg', size: 88000 }
+  }
+];
+
+export const MOCK_FUEL_TRANSACTIONS: FuelTransaction[] = [
+  { id: 'FT-101', date: '2026-05-20', cardOrTruckId: 'TRK-101', stateCode: 'IL', gallons: 142.5, totalAmount: 541.50, pricePerGallon: 3.80, merchantOrCity: 'Pilot #491 - Morris, IL', cardholderName: 'Linda Garcia', invoiceOrRef: 'EFS-881920' },
+  { id: 'FT-102', date: '2026-05-21', cardOrTruckId: 'TRK-101', stateCode: 'IN', gallons: 125.0, totalAmount: 462.50, pricePerGallon: 3.70, merchantOrCity: 'Love’s #210 - Gary, IN', cardholderName: 'Linda Garcia', invoiceOrRef: 'EFS-881932' },
+  { id: 'FT-103', date: '2026-05-22', cardOrTruckId: 'TRK-202', stateCode: 'OH', gallons: 160.0, totalAmount: 608.00, pricePerGallon: 3.80, merchantOrCity: 'TA #302 - Toledo, OH', cardholderName: 'James Wilson', invoiceOrRef: 'EFS-882019' },
+  { id: 'FT-104', date: '2026-05-23', cardOrTruckId: 'TRK-202', stateCode: 'PA', gallons: 135.2, totalAmount: 540.80, pricePerGallon: 4.00, merchantOrCity: 'Pilot #102 - Breezewood, PA', cardholderName: 'James Wilson', invoiceOrRef: 'EFS-882144' },
+  { id: 'FT-105', date: '2026-05-18', cardOrTruckId: 'TRK-404', stateCode: 'TX', gallons: 180.0, totalAmount: 630.00, pricePerGallon: 3.50, merchantOrCity: 'Love’s #551 - Dallas, TX', cardholderName: 'Robert Brown', invoiceOrRef: 'EFS-881451' },
+  { id: 'FT-106', date: '2026-05-19', cardOrTruckId: 'TRK-404', stateCode: 'OK', gallons: 110.0, totalAmount: 396.00, pricePerGallon: 3.60, merchantOrCity: 'Flying J #311 - OKC, OK', cardholderName: 'Robert Brown', invoiceOrRef: 'EFS-881512' },
+  { id: 'FT-107', date: '2026-05-15', cardOrTruckId: 'TRK-303', stateCode: 'GA', gallons: 155.0, totalAmount: 589.00, pricePerGallon: 3.80, merchantOrCity: 'TA Express - Atlanta, GA', cardholderName: 'Sarah Miller', invoiceOrRef: 'EFS-880918' },
+  { id: 'FT-108', date: '2026-05-16', cardOrTruckId: 'TRK-303', stateCode: 'TN', gallons: 140.0, totalAmount: 518.00, pricePerGallon: 3.70, merchantOrCity: 'Pilot #284 - Nashville, TN', cardholderName: 'Sarah Miller', invoiceOrRef: 'EFS-881022' }
+];
+

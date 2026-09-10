@@ -213,6 +213,96 @@ export interface PayStub {
   status: 'Pending Review' | 'Approved' | 'Paid';
   issuedAt: string;
   notes?: string;
+  reimbursements?: {
+    expenseId: string;
+    category: string;
+    amount: number;
+    description: string;
+    receiptFile?: { name: string; size: number; dataUrl?: string };
+  }[];
+  totalReimbursements?: number;
+  netPayableAmount?: number;
+}
+
+export interface MaintenanceInvoice {
+  id: string;
+  vehicleId: string; // Unit ID e.g. TRK-101
+  unitNumber: string;
+  invoiceNumber: string;
+  date: string; // YYYY-MM-DD
+  vendorName: string; // e.g. "TA Truck Service", "Speedco", "Rush Truck Center"
+  serviceType: 
+    | 'Oil Change & PM' 
+    | 'Brakes & Air System' 
+    | 'Tires & Alignment' 
+    | 'Engine Repair' 
+    | 'Transmission & Drivetrain' 
+    | 'DOT Annual Periodic Inspection' 
+    | 'Trailer & Body Repair' 
+    | 'Electrical & Lighting' 
+    | 'Other Maintenance';
+  amount: number;
+  odometerReading?: number;
+  notes?: string;
+  receiptFile?: { name: string; size: number; dataUrl?: string };
+  submittedBy?: string;
+  submittedAt: string;
+}
+
+export type DriverExpenseCategory = 
+  | 'Scale (CAT Scale)' 
+  | 'Lumper Fee' 
+  | 'Tolls & Turnpike' 
+  | 'DEF / Fluids' 
+  | 'Trailer Washout' 
+  | 'Parking' 
+  | 'Emergency Roadside Repair' 
+  | 'Other Out-of-Pocket';
+
+export interface DriverExpense {
+  id: string;
+  driverId: string;
+  driverName: string;
+  date: string; // YYYY-MM-DD
+  category: DriverExpenseCategory;
+  amount: number;
+  loadNumber?: string;
+  description: string;
+  receiptFile?: { name: string; size: number; dataUrl?: string };
+  status: 'Pending' | 'Approved' | 'Reimbursed';
+  reimbursedInPayStubId?: string;
+  submittedAt: string;
+}
+
+export interface FuelTransaction {
+  id: string;
+  date: string; // YYYY-MM-DD
+  cardOrTruckId: string;
+  stateCode: string;
+  gallons: number;
+  totalAmount: number;
+  pricePerGallon?: number;
+  merchantOrCity?: string;
+  cardholderName?: string;
+  invoiceOrRef?: string;
+}
+
+export interface MonthlyPnlRecord {
+  monthKey: string; // YYYY-MM
+  monthLabel: string; // e.g. "Jan 2026"
+  revenue: number;
+  driverWages: number;
+  fuelExpenses: number;
+  maintenanceExpenses: number;
+  driverReimbursements: number;
+  fixedOverhead: number;
+  totalExpenses: number;
+  netProfit: number;
+  profitMarginPercent: number;
+  totalMiles: number;
+  avgRatePerMile: number;
+  costPerMile: number;
+  isProjected?: boolean;
 }
 
 export interface IftaJurisdictionRecord {

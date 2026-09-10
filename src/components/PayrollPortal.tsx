@@ -22,9 +22,10 @@ import {
   Check,
   Fuel
 } from 'lucide-react';
-import { PayStub, DispatchLoad, Driver, CompanyInfo } from '../types';
+import { PayStub, DispatchLoad, Driver, CompanyInfo, MaintenanceInvoice, DriverExpense, FuelTransaction } from '../types';
 import { DEFAULT_COMPANY_INFO } from '../data';
 import IftaReportGenerator from './IftaReportGenerator';
+import ProfitLossAnalytics from './ProfitLossAnalytics';
 
 interface PayrollPortalProps {
   payStubs: PayStub[];
@@ -33,6 +34,10 @@ interface PayrollPortalProps {
   currentUserRole: string;
   companyInfo?: CompanyInfo;
   onUpdateStubStatus: (id: string, status: PayStub['status']) => void;
+  maintenanceInvoices?: MaintenanceInvoice[];
+  driverExpenses?: DriverExpense[];
+  fuelTransactions?: FuelTransaction[];
+  onImportFuelTransactions?: (transactions: FuelTransaction[]) => void;
 }
 
 export default function PayrollPortal({
@@ -41,10 +46,14 @@ export default function PayrollPortal({
   drivers,
   currentUserRole,
   companyInfo = DEFAULT_COMPANY_INFO,
-  onUpdateStubStatus
+  onUpdateStubStatus,
+  maintenanceInvoices = [],
+  driverExpenses = [],
+  fuelTransactions = [],
+  onImportFuelTransactions
 }: PayrollPortalProps) {
-  // Navigation State: 'settlements' | 'tax-forms' | 'ifta-report'
-  const [activeSubTab, setActiveSubTab] = useState<'settlements' | 'tax-forms' | 'ifta-report'>('settlements');
+  // Navigation State: 'settlements' | 'tax-forms' | 'ifta-report' | 'pnl-analytics'
+  const [activeSubTab, setActiveSubTab] = useState<'settlements' | 'tax-forms' | 'ifta-report' | 'pnl-analytics'>('settlements');
 
   // Settlements View State
   const [selectedStub, setSelectedStub] = useState<PayStub | null>(null);
@@ -67,7 +76,7 @@ export default function PayrollPortal({
 
   const [filingLogs, setFilingLogs] = useState<any[]>([
     { id: 'TX-941-2026-Q1', formName: 'Form 941 (Quarterly Federal Return)', year: '2026', quarter: 'Q1', filedAt: '2026-04-15 09:30', status: 'Accepted', confirmationNo: 'IRS-CONF-94101A' },
-    { id: 'TX-1099-James', formName: 'Form 1099-NEC (James Wilson)', year: '2025', filedAt: '2026-01-28 14:22', status: 'Accepted', confirmationNo: 'IRS-CONF-109908B' },
+    { id: 'TX-1099-James', formName: 'Form 1099-NEC (James Bond)', year: '2025', filedAt: '2026-01-28 14:22', status: 'Accepted', confirmationNo: 'IRS-CONF-109908B' },
     { id: 'TX-W2-Linda', formName: 'Form W-2 (Linda Garcia)', year: '2025', filedAt: '2026-01-29 11:05', status: 'Accepted', confirmationNo: 'IRS-CONF-W29819Y' }
   ]);
 
@@ -131,7 +140,7 @@ export default function PayrollPortal({
 
     // High fidelity default values for standard truckers if pay stubs are not yet accumulated
     const standardDefaults = {
-      'D5': { gross: 56400, miles: 28200, fed: 6768, state: 1974, ss: 3496.80, med: 817.80, net: 43343.40 },
+      'D1': { gross: 56400, miles: 28200, fed: 6768, state: 1974, ss: 3496.80, med: 817.80, net: 43343.40 },
       'D2': { gross: 48900, miles: 24450, fed: 5868, state: 1711.50, ss: 3031.80, med: 709.05, net: 37579.65 },
       'D3': { gross: 61200, miles: 30600, fed: 7344, state: 2142, ss: 3794.40, med: 887.40, net: 47032.20 }
     };
@@ -270,6 +279,18 @@ export default function PayrollPortal({
           }`}
         >
           <Fuel className="text-amber-500" size={14} /> IFTA Fuel Tax Report
+        </button>
+        <button
+          onClick={() => {
+            setActiveSubTab('pnl-analytics');
+          }}
+          className={`pb-3 px-6 text-xs uppercase tracking-wider font-black transition-all border-b-2 flex items-center gap-2 ${
+            activeSubTab === 'pnl-analytics'
+              ? 'border-indigo-600 text-indigo-700'
+              : 'border-transparent text-slate-500 hover:text-slate-800'
+          }`}
+        >
+          <TrendingUp className="text-indigo-600" size={14} /> P&L Charts & Tax Deductions
         </button>
       </div>
 
@@ -478,10 +499,17 @@ export default function PayrollPortal({
                         <span>Fuel Tax Surcharge Levy (Corporate):</span>
                         <span>-$45.00</span>
                       </div>
+
+                      {((selectedStub.reimbursements ?? 0) > 0) && (
+                        <div className="flex justify-between text-emerald-700 font-bold bg-emerald-50 px-2 py-1 rounded">
+                          <span>Driver Out-of-Pocket Reimbursements (Scales/Lumpers):</span>
+                          <span>+${(selectedStub.reimbursements ?? 0).toFixed(2)}</span>
+                        </div>
+                      )}
                       
                       <div className="flex justify-between border-t border-slate-200 pt-2 text-xs text-slate-900 font-extrabold">
                         <span className="uppercase">Net Weekly Settlement:</span>
-                        <span className="text-sm text-indigo-700 font-black">${(selectedStub.grossAmount + 150 - 45).toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+                        <span className="text-sm text-indigo-700 font-black">${(selectedStub.grossAmount + 150 - 45 + (selectedStub.reimbursements ?? 0)).toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
                       </div>
                     </div>
 
@@ -791,7 +819,7 @@ export default function PayrollPortal({
                             <div className="border border-slate-300 p-1.5 rounded bg-slate-50 font-mono">
                               <span className="text-[8px] font-black uppercase text-slate-500 block">RECIPIENT'S TIN</span>
                               <strong className="text-[10px] text-slate-800">
-                                {selectedDriverIdForTax === 'D5' ? '261-XX-9014' : 
+                                {selectedDriverIdForTax === 'D1' ? '331-XX-9812' : 
                                  selectedDriverIdForTax === 'D2' ? '401-XX-2819' : '290-XX-8711'}
                               </strong>
                             </div>
@@ -868,7 +896,7 @@ export default function PayrollPortal({
                           <div className="border border-slate-300 p-1.5 rounded bg-slate-50">
                             <span className="text-[7px] font-bold text-slate-400 block">a Employee's social security number</span>
                             <strong className="text-[10px] text-slate-800 font-mono">
-                              {selectedDriverIdForTax === 'D5' ? '261-XX-9014' : 
+                              {selectedDriverIdForTax === 'D1' ? '331-XX-9812' : 
                                selectedDriverIdForTax === 'D2' ? '401-XX-2819' : '290-XX-8711'}
                             </strong>
                           </div>
@@ -1146,6 +1174,20 @@ export default function PayrollPortal({
           loads={loads}
           drivers={drivers}
           companyInfo={companyInfo}
+          fuelTransactions={fuelTransactions}
+          onUploadFuelTransactions={onImportFuelTransactions}
+        />
+      )}
+
+      {/* TAB 4: PROFIT & LOSS ANALYTICS & TAX DEDUCTIONS */}
+      {activeSubTab === 'pnl-analytics' && (
+        <ProfitLossAnalytics
+          loads={loads}
+          payStubs={payStubs}
+          maintenanceInvoices={maintenanceInvoices}
+          driverExpenses={driverExpenses}
+          fuelTransactions={fuelTransactions}
+          drivers={drivers}
         />
       )}
 

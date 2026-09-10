@@ -6,9 +6,11 @@ import {
   ComplianceStatus,
   DispatchLoad,
   PayStub,
-  IncidentReport
+  IncidentReport,
+  DriverExpense
 } from '../types';
 import IncidentReportingModal from './IncidentReportingModal';
+import DriverExpenseModal from './DriverExpenseModal';
 import { 
   FileCheck, 
   Calendar, 
@@ -30,7 +32,9 @@ import {
   Wrench,
   Shield,
   Activity,
-  PhoneCall
+  PhoneCall,
+  Scale,
+  FileText
 } from 'lucide-react';
 
 interface DriverPortalProps {
@@ -44,6 +48,8 @@ interface DriverPortalProps {
   payStubs?: PayStub[];
   incidents?: IncidentReport[];
   onReportIncident?: (incident: Omit<IncidentReport, 'id' | 'reportedAt' | 'status'>) => void;
+  driverExpenses?: DriverExpense[];
+  onAddDriverExpense?: (expense: Omit<DriverExpense, 'id' | 'submittedAt' | 'payrollStatus'>) => void;
 }
 
 export default function DriverPortal({ 
@@ -56,7 +62,9 @@ export default function DriverPortal({
   onUpdateLoadStatus,
   payStubs = [],
   incidents = [],
-  onReportIncident
+  onReportIncident,
+  driverExpenses = [],
+  onAddDriverExpense
 }: DriverPortalProps) {
   const [cdlDate, setCdlDate] = useState('');
   const [medDate, setMedDate] = useState('');
@@ -65,6 +73,7 @@ export default function DriverPortal({
   const [successMsg, setSuccessMsg] = useState('');
   const [selectedStub, setSelectedStub] = useState<PayStub | null>(null);
   const [isIncidentModalOpen, setIsIncidentModalOpen] = useState(false);
+  const [isExpenseModalOpen, setIsExpenseModalOpen] = useState(false);
 
   // Find their assigned vehicle
   const assignedVehicle = useMemo(() => {
@@ -119,6 +128,14 @@ export default function DriverPortal({
   const myPayStubs = useMemo(() => {
     return payStubs.filter(ps => ps.driverId === driver.id);
   }, [payStubs, driver.id]);
+
+  const myExpenses = useMemo(() => {
+    return (driverExpenses || []).filter(exp => exp.driverId === driver.id);
+  }, [driverExpenses, driver.id]);
+
+  const totalReimbursements = useMemo(() => {
+    return myExpenses.reduce((sum, e) => sum + e.amount, 0);
+  }, [myExpenses]);
 
   const myIncidents = useMemo(() => {
     return incidents.filter(inc => inc.driverId === driver.id);
@@ -778,10 +795,26 @@ export default function DriverPortal({
       </div>
 
       {/* Driver Weekly Pay Stubs / Settlements section */}
-      <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
-        <h3 className="text-sm font-bold text-slate-800 mb-4 flex items-center gap-2">
-          <Receipt size={16} className="text-emerald-600" /> My Weekly Settlements & Paychecks
-        </h3>
+      <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-6">
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 pb-3 border-b border-slate-100">
+          <div>
+            <h3 className="text-sm font-bold text-slate-800 flex items-center gap-2">
+              <Receipt size={16} className="text-emerald-600" /> My Weekly Settlements & Payroll
+            </h3>
+            <p className="text-[10px] text-slate-400 mt-0.5">
+              Review completed trip compensations, itemized deductions, and upload out-of-pocket receipts to be automatically reimbursed on payroll.
+            </p>
+          </div>
+
+          <button
+            type="button"
+            onClick={() => setIsExpenseModalOpen(true)}
+            className="bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold text-xs px-3.5 py-2 rounded-xl uppercase tracking-wider flex items-center gap-1.5 shadow-sm transition-all shrink-0 hover:scale-[1.02] active:scale-[0.98]"
+          >
+            <PlusCircle size={14} />
+            Upload Out-of-Pocket Expense
+          </button>
+        </div>
 
         {myPayStubs.length === 0 ? (
           <div className="text-center py-8 text-xs text-slate-450 space-y-1">
@@ -828,6 +861,55 @@ export default function DriverPortal({
             ))}
           </div>
         )}
+
+        {/* Driver Out-of-Pocket Reimbursement Registry */}
+        <div className="pt-4 border-t border-slate-100 space-y-3">
+          <div className="flex items-center justify-between">
+            <h4 className="text-xs font-black text-slate-800 uppercase tracking-wider flex items-center gap-1.5">
+              <Scale size={13} className="text-indigo-600" />
+              My Submitted Out-of-Pocket Expenses (Scales, Lumpers, Tolls, Washouts)
+            </h4>
+            <span className="text-[11px] font-mono text-emerald-700 font-bold">
+              Total Pending Reimbursements: ${totalReimbursements.toFixed(2)}
+            </span>
+          </div>
+
+          {myExpenses.length === 0 ? (
+            <div className="p-4 bg-slate-50 border border-dashed border-slate-200 rounded-xl text-center text-xs text-slate-400 space-y-1">
+              <p>No out-of-pocket expenses uploaded yet.</p>
+              <button
+                type="button"
+                onClick={() => setIsExpenseModalOpen(true)}
+                className="text-emerald-600 hover:text-emerald-700 font-bold underline text-[11px]"
+              >
+                Upload your first receipt (CAT scale, lumper, toll, washout)
+              </button>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+              {myExpenses.map((exp) => (
+                <div key={exp.id} className="p-3 bg-slate-50 rounded-xl border border-slate-200 text-xs space-y-2">
+                  <div className="flex items-start justify-between">
+                    <div>
+                      <span className="px-2 py-0.5 rounded text-[9px] font-black uppercase tracking-wider bg-indigo-50 text-indigo-700 border border-indigo-200">
+                        {exp.category}
+                      </span>
+                      <p className="font-bold text-slate-800 text-xs mt-1 truncate max-w-[170px]">{exp.description}</p>
+                    </div>
+                    <strong className="text-emerald-700 font-mono text-sm">${exp.amount.toFixed(2)}</strong>
+                  </div>
+
+                  <div className="flex items-center justify-between text-[10px] text-slate-400 font-mono border-t border-slate-200/60 pt-1.5">
+                    <span>{exp.date}</span>
+                    <span className="text-emerald-700 font-bold flex items-center gap-1 font-sans">
+                      <CheckCircle size={10} /> {exp.payrollStatus}
+                    </span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Paycheck detail popover overlay */}
@@ -890,6 +972,11 @@ export default function DriverPortal({
                   <span>CDL Safe Driver Award Bonus:</span>
                   <span>+$150.00</span>
                 </div>
+                {/* Reimbursed out-of-pocket expenses (scales, lumpers, tolls) */}
+                <div className="flex justify-between text-emerald-700 font-bold bg-emerald-50 px-2 py-1 rounded">
+                  <span>Out-of-Pocket Reimbursements (Scales / Lumpers / Tolls):</span>
+                  <span>+${(selectedStub.reimbursements ?? totalReimbursements).toFixed(2)}</span>
+                </div>
                 <div className="flex justify-between text-rose-600">
                   <span>Fuel Tax Surcharge Levy (Corp):</span>
                   <span>-$45.00</span>
@@ -897,7 +984,9 @@ export default function DriverPortal({
                 
                 <div className="flex justify-between border-t border-slate-200 pt-2 text-xs text-slate-950 font-extrabold">
                   <span className="uppercase">Net Weekly deposit:</span>
-                  <span className="text-sm text-indigo-700 font-black">${(selectedStub.grossAmount + 150 - 45).toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+                  <span className="text-sm text-indigo-700 font-black">
+                    ${(selectedStub.grossAmount + 150 - 45 + (selectedStub.reimbursements ?? totalReimbursements)).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                  </span>
                 </div>
               </div>
 
@@ -933,6 +1022,23 @@ export default function DriverPortal({
             }
             setIsIncidentModalOpen(false);
             triggerSuccessMsg('Roadside incident reported to Central Dispatch! An official event has been recorded in the Audit Trail and dispatch assistance is alerted.');
+          }}
+        />
+      )}
+
+      {/* Driver Out-of-Pocket Expense Modal */}
+      {isExpenseModalOpen && (
+        <DriverExpenseModal
+          driver={driver}
+          loads={assignedLoads}
+          existingExpenses={myExpenses}
+          isOpen={isExpenseModalOpen}
+          onClose={() => setIsExpenseModalOpen(false)}
+          onSubmitExpense={(newExp) => {
+            if (onAddDriverExpense) {
+              onAddDriverExpense(newExp);
+            }
+            triggerSuccessMsg('Expense receipt uploaded! Reimbursable amount queued for automatic payroll addition.');
           }}
         />
       )}

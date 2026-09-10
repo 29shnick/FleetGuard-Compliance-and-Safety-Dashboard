@@ -22,7 +22,15 @@ import {
   Compass,
   DollarSign,
   Receipt,
-  ShieldCheck
+  ShieldCheck,
+  Building2,
+  ArrowRight,
+  Monitor,
+  Smartphone,
+  MonitorSmartphone,
+  MoreHorizontal,
+  SlidersHorizontal,
+  Bell
 } from 'lucide-react';
 import { 
   BarChart, 
@@ -33,8 +41,8 @@ import {
   Cell, 
   ResponsiveContainer 
 } from 'recharts';
-import { MOCK_DRIVERS, MOCK_VEHICLES, DEFAULT_COMPANY_INFO, MOCK_INCIDENTS } from './data';
-import { Driver, Vehicle, ComplianceStatus, UserSession, AuditLogEntry, RenewalRequest, DispatchLoad, PayStub, TaxClassification, CompanyInfo, IncidentReport } from './types';
+import { MOCK_DRIVERS, MOCK_VEHICLES, DEFAULT_COMPANY_INFO, MOCK_INCIDENTS, HISTORICAL_VIOLATIONS, MOCK_MAINTENANCE_INVOICES, MOCK_DRIVER_EXPENSES, MOCK_FUEL_TRANSACTIONS } from './data';
+import { Driver, Vehicle, ComplianceStatus, UserSession, AuditLogEntry, RenewalRequest, DispatchLoad, PayStub, TaxClassification, CompanyInfo, IncidentReport, MaintenanceInvoice, DriverExpense, FuelTransaction } from './types';
 import RbacPanel, { SIMULATED_USERS } from './components/RbacPanel';
 import DriverPortal from './components/DriverPortal';
 import ActionCenter from './components/ActionCenter';
@@ -45,7 +53,7 @@ import DriverProfileModal from './components/DriverProfileModal';
 import CompanySettingsModal from './components/CompanySettingsModal';
 import SafetyRiskHeatmap from './components/SafetyRiskHeatmap';
 import SafetyRiskTrendChart from './components/SafetyRiskTrendChart';
-import { Building2 } from 'lucide-react';
+import SafetyHub from './components/SafetyHub';
 
 // Helper for days difference
 const getDaysDifference = (expiryStr: string) => {
@@ -68,33 +76,40 @@ const calcStatus = (cdlDate: string, medDate: string): ComplianceStatus => {
 };
 
 export default function App() {
-  const [activeTab, setActiveTab] = useState<'safety' | 'dispatch' | 'accounting' | 'portal'>('safety');
-  const [safetySubTab, setSafetySubTab] = useState<'drivers' | 'vehicles' | 'overview' | 'inbox' | 'logs'>('drivers');
+  const [activeTab, setActiveTab] = useState<string>('overview');
+  const [safetySubTab, setSafetySubTab] = useState<'credentials' | 'risk' | 'violations' | 'renewals' | 'vehicles'>('credentials');
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<ComplianceStatus[]>(['Compliant', 'Warning', 'NON-COMPLIANT']);
+  
+  // Viewport mode: 'auto' (fluid responsive), 'desktop' (enforce desktop), 'mobile' (enforce mobile phone view)
+  const [viewportMode, setViewportMode] = useState<'auto' | 'desktop' | 'mobile'>(() => {
+    const saved = localStorage.getItem('fg_viewport_mode');
+    return (saved === 'desktop' || saved === 'mobile' || saved === 'auto') ? saved : 'auto';
+  });
+
+  useEffect(() => {
+    localStorage.setItem('fg_viewport_mode', viewportMode);
+  }, [viewportMode]);
 
   // --- Session Role State ---
   const [currentUser, setCurrentUser] = useState<UserSession>(() => {
     const saved = localStorage.getItem('fg_currentUser');
     if (saved) {
-      try {
-        const parsed = JSON.parse(saved);
-        if (parsed && !parsed.name?.toLowerCase().includes('shikaleski') && parsed.id !== 'D1') {
-          return parsed;
-        }
-      } catch (e) {
-        // fallback
-      }
+      const u = JSON.parse(saved);
+      if (!u.name?.toLowerCase().includes('nikola')) return u;
     }
     return SIMULATED_USERS[0]; // Admin by default
   });
 
-  // --- Drivers Master State (Guaranteed non-Nikola) ---
+  // --- Drivers Master State (purges any lingering Nikola from previous caches) ---
   const [drivers, setDrivers] = useState<Driver[]>(() => {
     const saved = localStorage.getItem('fg_drivers');
-    const initialList: Driver[] = saved ? JSON.parse(saved) : MOCK_DRIVERS;
-    return initialList.filter(d => !d.name.toLowerCase().includes('shikaleski') && d.id !== 'D1');
+    if (saved) {
+      const parsed: Driver[] = JSON.parse(saved);
+      return parsed.filter(d => !d.name.toLowerCase().includes('nikola'));
+    }
+    return MOCK_DRIVERS;
   });
 
   // --- Vehicles Master State ---
@@ -128,17 +143,12 @@ export default function App() {
   const [loads, setLoads] = useState<DispatchLoad[]>(() => {
     const saved = localStorage.getItem('fg_loads');
     if (saved) {
-      try {
-        const parsed: DispatchLoad[] = JSON.parse(saved);
-        return parsed.map(l => l.driverId === 'D1' || l.driverName.toLowerCase().includes('shikaleski')
-          ? { ...l, driverId: 'D5', driverName: 'Linda Garcia', truckId: 'TRK-505' }
-          : l
-        );
-      } catch (e) {}
+      const parsed: DispatchLoad[] = JSON.parse(saved);
+      return parsed.map(l => l.driverName.toLowerCase().includes('nikola') ? { ...l, driverId: 'D5', driverName: 'Linda Garcia' } : l);
     }
     return [
       { id: 'LD-1', loadNumber: 'LD-3942', originHub: 'Chicago, IL', destinationHub: 'New York, NY', calculatedMiles: 712, driverId: 'D2', driverName: 'James Wilson', truckId: 'TRK-202', ratePerMile: 2.60, payout: 1851.20, status: 'Dispatched', cargoType: 'Refrigerated Food', weightLbs: 38000, submittedAt: '2026-05-24 10:15' },
-      { id: 'LD-2', loadNumber: 'LD-2051', originHub: 'Dallas, TX', destinationHub: 'Los Angeles, CA', calculatedMiles: 1400, driverId: 'D5', driverName: 'Linda Garcia', truckId: 'TRK-505', ratePerMile: 3.10, payout: 4340.00, status: 'Active', cargoType: 'Electronics Secure', weightLbs: 15500, submittedAt: '2026-05-24 11:30' },
+      { id: 'LD-2', loadNumber: 'LD-2051', originHub: 'Dallas, TX', destinationHub: 'Los Angeles, CA', calculatedMiles: 1400, driverId: 'D5', driverName: 'Linda Garcia', truckId: 'TRK-101', ratePerMile: 3.10, payout: 4340.00, status: 'Active', cargoType: 'Electronics Secure', weightLbs: 15500, submittedAt: '2026-05-24 11:30' },
       { id: 'LD-3', loadNumber: 'LD-8103', originHub: 'Miami, FL', destinationHub: 'Atlanta, GA', calculatedMiles: 660, driverId: 'Unassigned', driverName: 'Unassigned', truckId: 'None', ratePerMile: 2.15, payout: 1419.00, status: 'Pending', cargoType: 'Dry Van General', weightLbs: 24000, submittedAt: '2026-05-24 12:45' }
     ];
   });
@@ -147,13 +157,8 @@ export default function App() {
   const [payStubs, setPayStubs] = useState<PayStub[]>(() => {
     const saved = localStorage.getItem('fg_paystubs');
     if (saved) {
-      try {
-        const parsed: PayStub[] = JSON.parse(saved);
-        return parsed.map(ps => ps.driverId === 'D1' || ps.driverName.toLowerCase().includes('shikaleski')
-          ? { ...ps, driverId: 'D5', driverName: 'Linda Garcia' }
-          : ps
-        );
-      } catch (e) {}
+      const parsed: PayStub[] = JSON.parse(saved);
+      return parsed.map(p => p.driverName.toLowerCase().includes('nikola') ? { ...p, driverId: 'D5', driverName: 'Linda Garcia' } : p);
     }
     return [
       {
@@ -205,6 +210,33 @@ export default function App() {
       }
     }
     return MOCK_INCIDENTS;
+  });
+
+  // Maintenance Invoices State (for Unit Invoices upload)
+  const [maintenanceInvoices, setMaintenanceInvoices] = useState<MaintenanceInvoice[]>(() => {
+    const saved = localStorage.getItem('fg_maintenance_invoices');
+    if (saved) {
+      try { return JSON.parse(saved); } catch (e) {}
+    }
+    return MOCK_MAINTENANCE_INVOICES;
+  });
+
+  // Driver Expenses State (Scales, Lumpers, Tolls, Washouts)
+  const [driverExpenses, setDriverExpenses] = useState<DriverExpense[]>(() => {
+    const saved = localStorage.getItem('fg_driver_expenses');
+    if (saved) {
+      try { return JSON.parse(saved); } catch (e) {}
+    }
+    return MOCK_DRIVER_EXPENSES;
+  });
+
+  // Fleet Fuel Account Transactions (from CSV uploads)
+  const [fuelTransactions, setFuelTransactions] = useState<FuelTransaction[]>(() => {
+    const saved = localStorage.getItem('fg_fuel_transactions');
+    if (saved) {
+      try { return JSON.parse(saved); } catch (e) {}
+    }
+    return MOCK_FUEL_TRANSACTIONS;
   });
 
   // Forecasting simulation state
@@ -290,8 +322,8 @@ export default function App() {
       setActiveTab('portal');
     } else if (currentUser.role === 'Dispatcher') {
       setActiveTab('dispatch');
-    } else if (activeTab === 'portal') {
-      setActiveTab('safety');
+    } else if (activeTab === 'portal' || activeTab === 'dispatch') {
+      setActiveTab('overview');
     }
   }, [currentUser]);
 
@@ -384,6 +416,28 @@ export default function App() {
     setAuditLogs(prev => [newLog, ...prev]);
   };
 
+  // Centralized Tab Router
+  const handleNavigateToTab = (tab: string, sub?: 'credentials' | 'risk' | 'violations' | 'renewals' | 'vehicles') => {
+    if (tab === 'drivers') {
+      setActiveTab('safety');
+      setSafetySubTab('credentials');
+    } else if (tab === 'vehicles') {
+      setActiveTab('safety');
+      setSafetySubTab('vehicles');
+    } else if (tab === 'inbox') {
+      setActiveTab('safety');
+      setSafetySubTab('renewals');
+    } else if (tab === 'payroll') {
+      setActiveTab('accounting');
+    } else {
+      setActiveTab(tab);
+      if (sub) {
+        setSafetySubTab(sub);
+      }
+    }
+    setIsMobileMenuOpen(false);
+  };
+
   // Reset demo state
   const handleResetDemo = () => {
     if (confirm('Are you sure you want to restore default demo credentials?')) {
@@ -401,7 +455,7 @@ export default function App() {
       ]);
       setLoads([
         { id: 'LD-1', loadNumber: 'LD-3942', originHub: 'Chicago, IL', destinationHub: 'New York, NY', calculatedMiles: 712, driverId: 'D2', driverName: 'James Wilson', truckId: 'TRK-202', ratePerMile: 2.60, payout: 1851.20, status: 'Dispatched', cargoType: 'Refrigerated Food', weightLbs: 38000, submittedAt: '2026-05-24 10:15' },
-        { id: 'LD-2', loadNumber: 'LD-2051', originHub: 'Dallas, TX', destinationHub: 'Los Angeles, CA', calculatedMiles: 1400, driverId: 'D5', driverName: 'Linda Garcia', truckId: 'TRK-505', ratePerMile: 3.10, payout: 4340.00, status: 'Active', cargoType: 'Electronics Secure', weightLbs: 15500, submittedAt: '2026-05-24 11:30' },
+        { id: 'LD-2', loadNumber: 'LD-2051', originHub: 'Dallas, TX', destinationHub: 'Los Angeles, CA', calculatedMiles: 1400, driverId: 'D5', driverName: 'Linda Garcia', truckId: 'TRK-101', ratePerMile: 3.10, payout: 4340.00, status: 'Active', cargoType: 'Electronics Secure', weightLbs: 15500, submittedAt: '2026-05-24 11:30' },
         { id: 'LD-3', loadNumber: 'LD-8103', originHub: 'Miami, FL', destinationHub: 'Atlanta, GA', calculatedMiles: 660, driverId: 'Unassigned', driverName: 'Unassigned', truckId: 'None', ratePerMile: 2.15, payout: 1419.00, status: 'Pending', cargoType: 'Dry Van General', weightLbs: 24000, submittedAt: '2026-05-24 12:45' }
       ]);
       setPayStubs([
@@ -794,6 +848,122 @@ export default function App() {
     );
   };
 
+  // --- Maintenance Unit Invoices Handlers ---
+  const handleAddMaintenanceInvoice = (
+    invoiceData: Omit<MaintenanceInvoice, 'id' | 'submittedAt'>,
+    shouldResetStatus: boolean = true
+  ) => {
+    const newId = `INV-${Date.now().toString().slice(-6)}`;
+    const now = new Date();
+    const timestamp = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')} ${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+    
+    const newInv: MaintenanceInvoice = {
+      ...invoiceData,
+      id: newId,
+      submittedAt: timestamp
+    };
+
+    setMaintenanceInvoices(prev => {
+      const next = [newInv, ...prev];
+      localStorage.setItem('fg_maintenance_invoices', JSON.stringify(next));
+      return next;
+    });
+
+    // Automatically update vehicle status and odometer if service was performed
+    if (shouldResetStatus && (invoiceData.serviceType === 'Oil Change & PM' || invoiceData.serviceType === 'DOT Annual Periodic Inspection' || invoiceData.serviceType === 'Engine Repair')) {
+      setVehicles(prev => {
+        const next = prev.map(v => {
+          if (v.id === invoiceData.vehicleId) {
+            const currentOdo = invoiceData.odometerReading || v.odometer;
+            return {
+              ...v,
+              maintenanceStatus: 'Up to Date' as const,
+              odometer: Math.max(v.odometer, currentOdo),
+              lastServiceDate: invoiceData.date,
+              lastServiceMileage: currentOdo
+            };
+          }
+          return v;
+        });
+        localStorage.setItem('fg_vehicles', JSON.stringify(next));
+        return next;
+      });
+    }
+
+    logSecurityAction(
+      'Maintenance Invoice Recorded',
+      `Direct invoice ${newInv.invoiceNumber} ($${newInv.amount.toFixed(2)}) uploaded for vehicle ${newInv.unitNumber} (${newInv.serviceType}). Fleet maintenance ledger updated.`,
+      'data_edit'
+    );
+  };
+
+  const handleDeleteMaintenanceInvoice = (invoiceId: string) => {
+    setMaintenanceInvoices(prev => {
+      const next = prev.filter(inv => inv.id !== invoiceId);
+      localStorage.setItem('fg_maintenance_invoices', JSON.stringify(next));
+      return next;
+    });
+  };
+
+  // --- Driver Out-of-Pocket Expense Handlers (Automatic Payroll Addition) ---
+  const handleAddDriverExpense = (expenseData: Omit<DriverExpense, 'id' | 'submittedAt'>) => {
+    const newId = `EXP-${Date.now().toString().slice(-6)}`;
+    const now = new Date();
+    const timestamp = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')} ${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+    
+    const newExp: DriverExpense = {
+      ...expenseData,
+      id: newId,
+      submittedAt: timestamp,
+      status: 'Approved'
+    };
+
+    setDriverExpenses(prev => {
+      const next = [newExp, ...prev];
+      localStorage.setItem('fg_driver_expenses', JSON.stringify(next));
+      return next;
+    });
+
+    // Automatically credit onto driver's payroll (paystub)
+    setPayStubs(prev => {
+      const driverStubIndex = prev.findIndex(ps => ps.driverId === expenseData.driverId && ps.status !== 'Paid');
+      if (driverStubIndex >= 0) {
+        const updated = [...prev];
+        const stub = updated[driverStubIndex];
+        updated[driverStubIndex] = {
+          ...stub,
+          reimbursements: (stub.reimbursements || 0) + expenseData.amount
+        };
+        localStorage.setItem('fg_paystubs', JSON.stringify(updated));
+        return updated;
+      }
+      return prev;
+    });
+
+    logSecurityAction(
+      'Driver Expense Uploaded',
+      `Driver ${expenseData.driverName} submitted ${expenseData.category} expense of $${expenseData.amount.toFixed(2)} (${expenseData.description}). Automatically added to payroll.`,
+      'approval'
+    );
+  };
+
+  // --- Fuel Account Transactions Import Handler ---
+  const handleImportFuelTransactions = (newTransactions: FuelTransaction[]) => {
+    setFuelTransactions(prev => {
+      const existingIds = new Set(prev.map(t => t.id));
+      const filteredNew = newTransactions.filter(t => !existingIds.has(t.id));
+      const next = [...filteredNew, ...prev];
+      localStorage.setItem('fg_fuel_transactions', JSON.stringify(next));
+      return next;
+    });
+
+    logSecurityAction(
+      'Fuel CSV Ingestion',
+      `Imported ${newTransactions.length} fuel transactions from fleet fuel card account CSV into corporate accounting ledger.`,
+      'data_edit'
+    );
+  };
+
   // --- Driver Admin write changes ---
   const handleAddDriver = (e: React.FormEvent) => {
     e.preventDefault();
@@ -1018,29 +1188,6 @@ export default function App() {
 
   const pendingRequestsCount = useMemo(() => renewalRequests.filter(r => r.status === 'Pending').length, [renewalRequests]);
 
-  // Master navigation handler for cross-component linking
-  const handleNavigateToTab = (target: string) => {
-    if (target === 'drivers' || target === 'vehicles' || target === 'inbox' || target === 'logs' || target === 'overview' || target === 'safety') {
-      setActiveTab('safety');
-      if (target === 'safety') {
-        setSafetySubTab('drivers');
-      } else {
-        setSafetySubTab(target as any);
-      }
-    } else if (target === 'dispatch') {
-      setActiveTab('dispatch');
-    } else if (target === 'payroll' || target === 'accounting' || target === 'ifta') {
-      setActiveTab('accounting');
-    } else if (target === 'company') {
-      setIsEditingCompany(true);
-    } else if (target === 'portal') {
-      setActiveTab('portal');
-    } else {
-      setActiveTab(target as any);
-    }
-    setIsMobileMenuOpen(false);
-  };
-
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col font-sans text-slate-900">
       
@@ -1052,37 +1199,111 @@ export default function App() {
         drivers={drivers}
         renewalRequests={renewalRequests}
         onInspectDriver={(driver) => setEditingDriver(driver)}
-        onNavigateToTab={(tab) => {
-          handleNavigateToTab(tab);
-        }}
+        onNavigateToTab={handleNavigateToTab}
         onSubmitRenewal={handleAlertRenewalSubmit}
         onLogSecurityAction={logSecurityAction}
+        viewportMode={viewportMode}
+        onViewportModeChange={setViewportMode}
       />
 
-      {/* Main Core Container */}
-      <div className="flex flex-1 flex-col lg:flex-row relative">
-        {/* Mobile menu toggle indicator */}
-        <div className="lg:hidden bg-white border-b px-4 py-2.5 flex items-center justify-between">
-          <span className="text-xs font-bold font-mono text-slate-500">FLEETGUARD WORKSPACE NAVIGATION</span>
-          <button 
-            onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)} 
-            className="p-1 hover:bg-slate-100 rounded text-slate-700"
+      {/* Viewport Simulation Banner (when explicitly forcing mobile or desktop) */}
+      {viewportMode !== 'auto' && (
+        <div className="bg-slate-900 text-white px-4 py-2 text-xs flex items-center justify-between border-b border-slate-800 shrink-0">
+          <div className="flex items-center gap-2 font-mono">
+            {viewportMode === 'mobile' ? (
+              <>
+                <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                <span className="font-bold uppercase tracking-wider text-emerald-300">📱 Mobile Handheld Viewport Active</span>
+                <span className="text-slate-400 hidden sm:inline">— Previewing smartphone touch-optimized UI</span>
+              </>
+            ) : (
+              <>
+                <span className="w-2 h-2 rounded-full bg-blue-400" />
+                <span className="font-bold uppercase tracking-wider text-blue-300">🖥️ Desktop Viewport Enforced</span>
+                <span className="text-slate-400 hidden sm:inline">— Full wide dashboard layout & sidebars</span>
+              </>
+            )}
+          </div>
+          <button
+            onClick={() => setViewportMode('auto')}
+            className="text-[11px] font-bold underline text-slate-300 hover:text-white transition-colors"
           >
-            <Menu size={20} />
+            Reset to Auto
           </button>
+        </div>
+      )}
+
+      {/* Main Core Container */}
+      <div className={`flex flex-1 ${viewportMode === 'desktop' ? 'flex-row' : viewportMode === 'mobile' ? 'flex-col max-w-md mx-auto w-full border-x border-slate-200 shadow-sm' : 'flex-col lg:flex-row'} relative`}>
+        
+        {/* Mobile Slide-Over Backdrop Overlay */}
+        {isMobileMenuOpen && (
+          <div 
+            onClick={() => setIsMobileMenuOpen(false)}
+            className="fixed inset-0 bg-slate-950/60 backdrop-blur-xs z-40 lg:hidden transition-opacity"
+            aria-label="Close menu backdrop"
+          />
+        )}
+
+        {/* Mobile Top App Bar (Thumb-Accessible Header) */}
+        <div className={`${viewportMode === 'desktop' ? 'hidden' : 'lg:hidden'} bg-white border-b border-slate-200 px-4 py-3 flex items-center justify-between shadow-xs sticky top-0 z-30`}>
+          <div className="flex items-center gap-2.5">
+            <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center text-white text-base shadow-xs">🛡️</div>
+            <div>
+              <div className="flex items-center gap-1.5">
+                <span className="font-extrabold text-xs uppercase tracking-wider text-slate-900">FleetGuard</span>
+                <span className="px-1.5 py-0.5 rounded bg-blue-50 text-blue-700 text-[9px] font-bold uppercase tracking-wider border border-blue-200">
+                  {activeTab === 'overview' ? 'Overview' : activeTab === 'safety' ? 'Safety' : activeTab === 'dispatch' ? 'Dispatch' : activeTab === 'accounting' ? 'Payroll' : activeTab === 'logs' ? 'Logs' : 'Portal'}
+                </span>
+              </div>
+              <p className="text-[10px] text-slate-400 font-medium">Logged in as {currentUser.name}</p>
+            </div>
+          </div>
+          
+          <div className="flex items-center gap-2">
+            {/* Viewport switch fast icon */}
+            <div className="flex items-center bg-slate-100 rounded-lg p-0.5 border border-slate-200 text-[10px]">
+              <button
+                type="button"
+                onClick={() => setViewportMode(viewportMode === 'mobile' ? 'auto' : 'mobile')}
+                className={`p-1.5 rounded-md font-bold transition-all ${viewportMode === 'mobile' ? 'bg-white text-blue-600 shadow-xs' : 'text-slate-500 hover:text-slate-800'}`}
+                title="Toggle Mobile View"
+              >
+                <Smartphone size={13} />
+              </button>
+              <button
+                type="button"
+                onClick={() => setViewportMode(viewportMode === 'desktop' ? 'auto' : 'desktop')}
+                className={`p-1.5 rounded-md font-bold transition-all ${viewportMode === 'desktop' ? 'bg-white text-blue-600 shadow-xs' : 'text-slate-500 hover:text-slate-800'}`}
+                title="Toggle Desktop View"
+              >
+                <Monitor size={13} />
+              </button>
+            </div>
+
+            <button 
+              onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)} 
+              className="p-1.5 bg-slate-100 hover:bg-slate-200 text-slate-800 rounded-lg transition-colors focus:ring-2 focus:ring-blue-500"
+              aria-label="Toggle navigation menu"
+            >
+              {isMobileMenuOpen ? <X size={18} /> : <Menu size={18} />}
+            </button>
+          </div>
         </div>
 
         {/* Sidebar Navigation */}
         <aside className={`
-          bg-slate-900 text-slate-300 flex flex-col border-r border-slate-800 transition-all duration-300 z-40
-          fixed inset-y-0 left-0 w-64 transform ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'} lg:relative lg:translate-x-0 lg:w-64 shrink-0
+          bg-slate-900 text-slate-300 flex flex-col border-r border-slate-800 transition-all duration-300 z-50
+          fixed inset-y-0 left-0 w-72 transform ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'} 
+          ${viewportMode === 'desktop' ? 'lg:relative lg:translate-x-0 lg:w-64' : viewportMode === 'mobile' ? (isMobileMenuOpen ? 'translate-x-0 shadow-2xl' : '-translate-x-full') : 'lg:relative lg:translate-x-0 lg:w-64'} 
+          shrink-0 shadow-2xl lg:shadow-none
         `}>
           <div className="p-6 flex items-center justify-between border-b border-slate-800">
             <div className="flex items-center gap-2.5">
               <div className="w-9 h-9 bg-blue-600 rounded-lg flex items-center justify-center text-white font-black text-lg">🛡️</div>
               <div>
                 <h1 className="text-white font-extrabold text-sm leading-tight uppercase tracking-wider">FleetGuard</h1>
-                <p className="text-[10px] text-zinc-400 uppercase font-bold tracking-widest mt-0.5">Enterprise HQ</p>
+                <p className="text-[10px] text-zinc-400 uppercase font-bold tracking-widest mt-0.5">RBAC Portal</p>
               </div>
             </div>
             <button onClick={() => setIsMobileMenuOpen(false)} className="lg:hidden p-1.5 hover:bg-slate-800 rounded-lg text-slate-400">
@@ -1103,108 +1324,111 @@ export default function App() {
             </div>
           </div>
 
-          {/* Navigation Items (Clean Grouped Architecture: Safety, Dispatch, Accounting) */}
-          <nav className="flex-1 p-4 space-y-2 font-sans">
+          {/* Navigation Items (Categorized Clean Architecture) */}
+          <nav className="flex-1 p-4 space-y-1.5 font-sans overflow-y-auto">
             {currentUser.role !== 'Driver' ? (
               <>
-                <div className="text-[10px] font-bold uppercase tracking-widest text-slate-500 px-3 pt-1">
-                  Core Management Modules
-                </div>
-
-                {/* 1. SAFETY & COMPLIANCE */}
                 <button 
-                  onClick={() => { setActiveTab('safety'); setIsMobileMenuOpen(false); }} 
-                  className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl transition-all text-xs font-bold uppercase tracking-wider ${
-                    activeTab === 'safety' 
-                      ? 'bg-blue-600 text-white shadow-md' 
-                      : 'hover:bg-slate-800 text-slate-300'
-                  }`}
+                  onClick={() => { setActiveTab('overview'); setIsMobileMenuOpen(false); }} 
+                  className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-lg transition-colors text-xs font-semibold uppercase tracking-wider ${activeTab === 'overview' ? 'bg-blue-600 text-white shadow-xs' : 'hover:bg-slate-850'}`}
                 >
-                  <span className="flex items-center gap-3">
-                    <ShieldCheck size={16} className={activeTab === 'safety' ? 'text-white' : 'text-blue-400'} />
-                    Safety & Compliance
-                  </span>
-                  {expiredDocsCount > 0 ? (
-                    <span className="bg-rose-500 text-white text-[10px] font-black px-1.5 py-0.5 rounded-full animate-pulse">
-                      {expiredDocsCount}
-                    </span>
-                  ) : pendingRequestsCount > 0 ? (
-                    <span className="bg-amber-500 text-white text-[10px] font-black px-1.5 py-0.5 rounded-full">
-                      {pendingRequestsCount}
-                    </span>
-                  ) : null}
+                  <LayoutDashboard size={14} /> Executive Overview
                 </button>
-
-                {/* 2. DISPATCH & OPERATIONS */}
                 <button 
-                  onClick={() => { setActiveTab('dispatch'); setIsMobileMenuOpen(false); }} 
-                  className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl transition-all text-xs font-bold uppercase tracking-wider ${
-                    activeTab === 'dispatch' 
-                      ? 'bg-blue-600 text-white shadow-md' 
-                      : 'hover:bg-slate-800 text-slate-300'
-                  }`}
+                  onClick={() => { handleNavigateToTab('safety'); setIsMobileMenuOpen(false); }} 
+                  className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-lg transition-colors text-xs font-semibold uppercase tracking-wider ${activeTab === 'safety' ? 'bg-blue-600 text-white shadow-xs' : 'hover:bg-slate-850'}`}
                 >
                   <span className="flex items-center gap-3">
-                    <Compass size={16} className={activeTab === 'dispatch' ? 'text-white' : 'text-amber-400'} />
-                    Dispatch & Operations
+                    <ShieldAlert size={14} /> Safety & Compliance
                   </span>
-                  {activeIncidentsCount > 0 ? (
-                    <span className="bg-rose-500 text-white text-[10px] font-black px-2 py-0.5 rounded-full flex items-center gap-1 animate-pulse">
-                      🚨 {activeIncidentsCount}
-                    </span>
-                  ) : (
-                    <span className="text-[10px] font-mono font-bold text-slate-400 px-1.5 py-0.5 bg-slate-800 rounded">
-                      {loads.length}
+                  {(expiredDocsCount > 0 || pendingRequestsCount > 0) && (
+                    <span className="bg-rose-500 text-white text-[10px] font-black px-1.5 py-0.5 rounded-full flex items-center gap-1">
+                      {expiredDocsCount + pendingRequestsCount}
                     </span>
                   )}
                 </button>
-
-                {/* 3. ACCOUNTING & FINANCIAL HQ */}
                 <button 
-                  onClick={() => { setActiveTab('accounting'); setIsMobileMenuOpen(false); }} 
-                  className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl transition-all text-xs font-bold uppercase tracking-wider ${
-                    activeTab === 'accounting' 
-                      ? 'bg-blue-600 text-white shadow-md' 
-                      : 'hover:bg-slate-800 text-slate-300'
-                  }`}
+                  onClick={() => { handleNavigateToTab('dispatch'); setIsMobileMenuOpen(false); }} 
+                  className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-lg transition-colors text-xs font-semibold uppercase tracking-wider ${activeTab === 'dispatch' ? 'bg-blue-600 text-white shadow-xs' : 'hover:bg-slate-850'}`}
                 >
                   <span className="flex items-center gap-3">
-                    <DollarSign size={16} className={activeTab === 'accounting' ? 'text-white' : 'text-emerald-400'} />
-                    Accounting & Finance
+                    <Compass size={14} /> Dispatch & Operations
                   </span>
-                  <span className="text-[9px] font-mono font-bold text-slate-400 px-1.5 py-0.5 bg-slate-800 rounded">
-                    IFTA / W2
-                  </span>
-                </button>
-
-                <div className="pt-3 border-t border-slate-800/80">
-                  <div className="text-[10px] font-bold uppercase tracking-widest text-slate-500 px-3 pb-1.5">
-                    Carrier Administration
-                  </div>
-                  <button 
-                    onClick={() => { setIsEditingCompany(true); setIsMobileMenuOpen(false); }} 
-                    className="w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl transition-all text-xs font-bold uppercase tracking-wider bg-slate-800/60 hover:bg-slate-800 text-indigo-300 border border-slate-700/60"
-                    title="Configure company legal details, USDOT#, FEIN tax ID, address, and bank accounts"
-                  >
-                    <span className="flex items-center gap-3">
-                      <Building2 size={15} className="text-indigo-400" /> Carrier Profile
+                  {activeIncidentsCount > 0 && (
+                    <span className="bg-rose-500 text-white text-[10px] font-black px-1.5 py-0.5 rounded-full flex items-center gap-1 animate-pulse">
+                      🚨 {activeIncidentsCount}
                     </span>
-                    <span className="text-[9px] bg-indigo-950 text-indigo-300 border border-indigo-800 px-1.5 py-0.5 rounded font-mono font-bold">USDOT</span>
-                  </button>
-                </div>
+                  )}
+                </button>
+                <button 
+                  onClick={() => { handleNavigateToTab('accounting'); setIsMobileMenuOpen(false); }} 
+                  className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-lg transition-colors text-xs font-semibold uppercase tracking-wider ${activeTab === 'accounting' ? 'bg-blue-600 text-white shadow-xs' : 'hover:bg-slate-850'}`}
+                >
+                  <span className="flex items-center gap-3">
+                    <DollarSign size={14} /> Accounting & Payroll
+                  </span>
+                  {payStubs.filter(s => s.status === 'Pending Review').length > 0 && (
+                    <span className="bg-amber-500 text-slate-900 text-[10px] font-black px-1.5 py-0.5 rounded-full">
+                      {payStubs.filter(s => s.status === 'Pending Review').length}
+                    </span>
+                  )}
+                </button>
+                <button 
+                  onClick={() => { setActiveTab('logs'); setIsMobileMenuOpen(false); }} 
+                  className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-lg transition-colors text-xs font-semibold uppercase tracking-wider ${activeTab === 'logs' ? 'bg-blue-600 text-white shadow-xs' : 'hover:bg-slate-850'}`}
+                >
+                  <Fingerprint size={14} /> Audit Trail & Logs
+                </button>
+                <button 
+                  onClick={() => { setIsEditingCompany(true); setIsMobileMenuOpen(false); }} 
+                  className="w-full flex items-center justify-between px-3.5 py-2.5 rounded-lg transition-colors text-xs font-bold uppercase tracking-wider bg-slate-800/80 hover:bg-slate-800 text-indigo-300 border border-slate-700/60 mt-2"
+                  title="Configure company legal details, USDOT#, FEIN tax ID, address, and bank accounts"
+                >
+                  <span className="flex items-center gap-3">
+                    <Building2 size={14} className="text-indigo-400" /> Company Profile
+                  </span>
+                  <span className="text-[9px] bg-indigo-950 text-indigo-300 border border-indigo-800 px-1.5 py-0.5 rounded font-mono font-bold">SETUP</span>
+                </button>
               </>
             ) : (
-              <button 
-                onClick={() => { setActiveTab('portal'); setIsMobileMenuOpen(false); }} 
-                className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl transition-colors text-xs font-semibold uppercase tracking-wider ${activeTab === 'portal' ? 'bg-blue-600 text-white shadow-xs' : 'hover:bg-slate-850'}`}
-              >
-                <Fingerprint size={16} /> My Driver Desk
-              </button>
+              <>
+                <button 
+                  onClick={() => { setActiveTab('portal'); setIsMobileMenuOpen(false); }} 
+                  className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-lg transition-colors text-xs font-semibold uppercase tracking-wider ${activeTab === 'portal' ? 'bg-blue-600 text-white shadow-xs' : 'hover:bg-slate-850'}`}
+                >
+                  <Fingerprint size={14} /> My Profile Desk
+                </button>
+              </>
             )}
           </nav>
 
           {/* Quick-switch details to restore default values */}
           <div className="p-4 border-t border-slate-800 space-y-4">
+            {/* Viewport switcher inside drawer */}
+            <div className="bg-slate-800/50 rounded-lg p-3">
+              <p className="text-[9px] font-bold text-slate-500 uppercase tracking-widest mb-2">Display Version</p>
+              <div className="grid grid-cols-3 gap-1 bg-slate-900 p-1 rounded-md text-[10px] font-bold">
+                <button
+                  onClick={() => { setViewportMode('auto'); setIsMobileMenuOpen(false); }}
+                  className={`py-1 rounded text-center transition-colors ${viewportMode === 'auto' ? 'bg-blue-600 text-white' : 'text-slate-400 hover:text-white'}`}
+                >
+                  Auto
+                </button>
+                <button
+                  onClick={() => { setViewportMode('desktop'); setIsMobileMenuOpen(false); }}
+                  className={`py-1 rounded text-center transition-colors ${viewportMode === 'desktop' ? 'bg-blue-600 text-white' : 'text-slate-400 hover:text-white'}`}
+                >
+                  Desktop
+                </button>
+                <button
+                  onClick={() => { setViewportMode('mobile'); setIsMobileMenuOpen(false); }}
+                  className={`py-1 rounded text-center transition-colors ${viewportMode === 'mobile' ? 'bg-blue-600 text-white' : 'text-slate-400 hover:text-white'}`}
+                >
+                  Mobile
+                </button>
+              </div>
+            </div>
+
             {currentUser.role !== 'Driver' && (
               <div className="bg-slate-800/50 rounded-lg p-3">
                 <p className="text-[9px] font-bold text-slate-500 uppercase tracking-widest mb-2.5">Filter Compliance</p>
@@ -1237,36 +1461,135 @@ export default function App() {
         </aside>
 
         {/* Content body wrapper */}
-        <main className="flex-1 overflow-x-hidden overflow-y-auto p-4 lg:p-8">
+        <main className="flex-1 overflow-x-hidden overflow-y-auto p-4 lg:p-8 pb-28 lg:pb-8">
           
           {/* OVERVIEW TAB */}
           {activeTab === 'overview' && currentUser.role !== 'Driver' && (
             <div className="space-y-8 animate-fade-in">
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
-                <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs">
-                  <div className="flex md:flex-row flex-col justify-between items-start">
-                    <p className="text-slate-500 text-[10px] font-bold uppercase tracking-widest mb-1">Active Driver Roster</p>
-                    <span className="text-[10px] bg-slate-100 text-slate-600 font-bold px-1.5 py-0.5 rounded">REGULATORY COUNT</span>
+              {/* Executive Pillar Navigation Cards */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                {/* Pillar 1: Safety */}
+                <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs flex flex-col justify-between hover:border-blue-300 transition-colors">
+                  <div>
+                    <div className="flex justify-between items-start mb-2">
+                      <div className="flex items-center gap-2">
+                        <div className="w-8 h-8 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center font-bold">
+                          <ShieldCheck size={18} />
+                        </div>
+                        <div>
+                          <p className="text-xs font-bold text-slate-800 uppercase tracking-wider">Safety & Compliance</p>
+                          <p className="text-[10px] text-slate-400 font-mono">PILLAR 1 • DOT AUDIT</p>
+                        </div>
+                      </div>
+                      <span className="text-[10px] bg-emerald-100 text-emerald-800 font-extrabold px-2 py-0.5 rounded">
+                        {fleetHealthScore}% PASS
+                      </span>
+                    </div>
+                    <div className="mt-4 space-y-1 text-xs text-slate-600">
+                      <p className="flex justify-between">
+                        <span>Active Operators:</span>
+                        <span className="font-bold text-slate-900">{drivers.length} Drivers</span>
+                      </p>
+                      <p className="flex justify-between">
+                        <span>Debarred / Action Required:</span>
+                        <span className={`font-bold ${expiredDocsCount > 0 ? 'text-rose-600' : 'text-slate-900'}`}>{expiredDocsCount} Drivers</span>
+                      </p>
+                      <p className="flex justify-between">
+                        <span>Pending Approvals:</span>
+                        <span className="font-bold text-amber-600">{pendingRequestsCount} Requests</span>
+                      </p>
+                    </div>
                   </div>
-                  <h3 className="text-3xl font-black mt-2">{drivers.length} Drivers</h3>
+                  <button
+                    onClick={() => handleNavigateToTab('safety')}
+                    className="mt-5 w-full flex items-center justify-center gap-2 py-2 px-3 text-xs font-bold text-blue-600 bg-blue-50 hover:bg-blue-100 rounded-lg transition-colors uppercase tracking-wider"
+                  >
+                    Open Safety Hub <ArrowRight size={13} />
+                  </button>
                 </div>
 
-                <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs">
-                  <div className="flex md:flex-row flex-col justify-between items-start">
-                    <p className="text-slate-500 text-[10px] font-bold uppercase tracking-widest mb-1">Debarred Files (Expired CDL/Med)</p>
-                    <span className="text-[10px] bg-red-100 text-red-800 font-extrabold px-1.5 py-0.5 rounded">ACTION REQUIRED</span>
+                {/* Pillar 2: Dispatch */}
+                <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs flex flex-col justify-between hover:border-indigo-300 transition-colors">
+                  <div>
+                    <div className="flex justify-between items-start mb-2">
+                      <div className="flex items-center gap-2">
+                        <div className="w-8 h-8 rounded-lg bg-indigo-50 text-indigo-600 flex items-center justify-center font-bold">
+                          <Compass size={18} />
+                        </div>
+                        <div>
+                          <p className="text-xs font-bold text-slate-800 uppercase tracking-wider">Dispatch & Operations</p>
+                          <p className="text-[10px] text-slate-400 font-mono">PILLAR 2 • FREIGHT OPS</p>
+                        </div>
+                      </div>
+                      <span className="text-[10px] bg-indigo-100 text-indigo-800 font-extrabold px-2 py-0.5 rounded">
+                        {loads.filter(l => l.status === 'Active' || l.status === 'Dispatched').length} ACTIVE
+                      </span>
+                    </div>
+                    <div className="mt-4 space-y-1 text-xs text-slate-600">
+                      <p className="flex justify-between">
+                        <span>Active Dispatched Miles:</span>
+                        <span className="font-bold text-slate-900">{loads.reduce((acc, l) => acc + l.calculatedMiles, 0).toLocaleString()} mi</span>
+                      </p>
+                      <p className="flex justify-between">
+                        <span>Total Manifest Loads:</span>
+                        <span className="font-bold text-slate-900">{loads.length} Shipments</span>
+                      </p>
+                      <p className="flex justify-between">
+                        <span>Roadside Incidents:</span>
+                        <span className={`font-bold ${activeIncidentsCount > 0 ? 'text-rose-600 animate-pulse' : 'text-emerald-600'}`}>
+                          {activeIncidentsCount > 0 ? `🚨 ${activeIncidentsCount} Breakdown` : 'Zero Active'}
+                        </span>
+                      </p>
+                    </div>
                   </div>
-                  <h3 className={`text-3xl font-black mt-2 ${expiredDocsCount > 0 ? 'text-rose-600' : 'text-slate-800'}`}>
-                    {expiredDocsCount} Drivers
-                  </h3>
+                  <button
+                    onClick={() => handleNavigateToTab('dispatch')}
+                    className="mt-5 w-full flex items-center justify-center gap-2 py-2 px-3 text-xs font-bold text-indigo-600 bg-indigo-50 hover:bg-indigo-100 rounded-lg transition-colors uppercase tracking-wider"
+                  >
+                    Open Dispatch Board <ArrowRight size={13} />
+                  </button>
                 </div>
 
-                <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs">
-                  <div className="flex md:flex-row flex-col justify-between items-start">
-                    <p className="text-slate-500 text-[10px] font-bold uppercase tracking-widest mb-1">Qualified Compliance Score</p>
-                    <span className="text-[10px] bg-emerald-100 text-emerald-800 font-extrabold px-1.5 py-0.5 rounded">QUALIFY SCORE</span>
+                {/* Pillar 3: Accounting */}
+                <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs flex flex-col justify-between hover:border-emerald-300 transition-colors">
+                  <div>
+                    <div className="flex justify-between items-start mb-2">
+                      <div className="flex items-center gap-2">
+                        <div className="w-8 h-8 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center font-bold">
+                          <DollarSign size={18} />
+                        </div>
+                        <div>
+                          <p className="text-xs font-bold text-slate-800 uppercase tracking-wider">Accounting & Payroll</p>
+                          <p className="text-[10px] text-slate-400 font-mono">PILLAR 3 • SETTLEMENTS</p>
+                        </div>
+                      </div>
+                      <span className="text-[10px] bg-slate-100 text-slate-700 font-extrabold px-2 py-0.5 rounded">
+                        WEEKLY CYCLE
+                      </span>
+                    </div>
+                    <div className="mt-4 space-y-1 text-xs text-slate-600">
+                      <p className="flex justify-between">
+                        <span>Weekly Gross Settlement:</span>
+                        <span className="font-bold text-slate-900">${payStubs.reduce((acc, s) => acc + s.grossAmount, 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+                      </p>
+                      <p className="flex justify-between">
+                        <span>Stubs Pending Review:</span>
+                        <span className={`font-bold ${payStubs.filter(s => s.status === 'Pending Review').length > 0 ? 'text-amber-600' : 'text-slate-900'}`}>
+                          {payStubs.filter(s => s.status === 'Pending Review').length} Stubs
+                        </span>
+                      </p>
+                      <p className="flex justify-between">
+                        <span>Fuel Tax Filing:</span>
+                        <span className="font-bold text-emerald-600">IFTA Q2 2026 Ready</span>
+                      </p>
+                    </div>
                   </div>
-                  <h3 className="text-3xl font-black mt-2 text-emerald-600">{fleetHealthScore}% Pass</h3>
+                  <button
+                    onClick={() => handleNavigateToTab('accounting')}
+                    className="mt-5 w-full flex items-center justify-center gap-2 py-2 px-3 text-xs font-bold text-emerald-600 bg-emerald-50 hover:bg-emerald-100 rounded-lg transition-colors uppercase tracking-wider"
+                  >
+                    Open Accounting Hub <ArrowRight size={13} />
+                  </button>
                 </div>
               </div>
 
@@ -1275,7 +1598,7 @@ export default function App() {
                 drivers={drivers}
                 incidents={incidents}
                 onSelectDriver={(driver) => setEditingDriver(driver)}
-                onNavigateToDrivers={() => setActiveTab('drivers')}
+                onNavigateToDrivers={() => handleNavigateToTab('safety', 'risk')}
                 currentUserId={currentUser.id}
               />
 
@@ -1329,7 +1652,7 @@ export default function App() {
                       </div>
                       <div className="flex gap-1.5 items-center">
                         <Lock size={12} className="text-blue-500" />
-                        <span className="font-bold text-slate-900">Drivers (Nikola/James):</span>
+                        <span className="font-bold text-slate-900">Drivers (James/Linda):</span>
                         <span className="text-[9px] text-slate-500">Personal Portal / Submission Desk</span>
                       </div>
                     </div>
@@ -1400,344 +1723,30 @@ export default function App() {
             </div>
           )}
 
-          {/* DRIVERS TAB */}
-          {activeTab === 'drivers' && currentUser.role !== 'Driver' && (
-            <div className="space-y-6 animate-fade-in">
-              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-                <div>
-                  <h3 className="text-lg font-black text-slate-900 tracking-tight">Active Operator Roster</h3>
-                  <p className="text-xs text-slate-500 mt-0.5">Manage operator files, inspect critical violations, and adjust vehicle alignments.</p>
-                </div>
-
-                {currentUser.role === 'Administrator' && (
-                  <button 
-                    onClick={() => setIsAddingDriver(true)}
-                    className="bg-slate-900 hover:bg-slate-850 text-white font-bold text-xs py-2 px-4 rounded-lg shadow-sm flex items-center gap-1.5 uppercase tracking-wider"
-                  >
-                    <Plus size={14} /> Insert Driver Profile
-                  </button>
-                )}
-              </div>
-
-              {/* Roster table list */}
-              <div className="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden">
-                <div className="overflow-x-auto">
-                  <table className="w-full text-left border-collapse min-w-[800px] text-xs">
-                    <thead>
-                      <tr className="bg-slate-50 border-b border-slate-200">
-                        <th className="px-6 py-4 font-bold text-slate-400 uppercase tracking-widest text-[10px]">Driver ID & Name</th>
-                        <th className="px-6 py-4 font-bold text-slate-400 uppercase tracking-widest text-[10px]">Tax Setup</th>
-                        <th className="px-6 py-4 font-bold text-slate-400 uppercase tracking-widest text-[10px]">Assigned Equipment</th>
-                        <th className="px-6 py-4 font-bold text-slate-400 uppercase tracking-widest text-[10px]">Critical CDL Date</th>
-                        <th className="px-6 py-4 font-bold text-slate-400 uppercase tracking-widest text-[10px]">Critical Med Exam Date</th>
-                        <th className="px-6 py-4 font-bold text-slate-400 uppercase tracking-widest text-[10px]">Safety Exclusions</th>
-                        <th className="px-6 py-4 font-bold text-slate-400 uppercase tracking-widest text-[10px]">Roster Status</th>
-                        <th className="px-6 py-4 font-bold text-slate-400 uppercase tracking-widest text-[10px] text-right">Actions</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-100">
-                      {drivers.map((driver) => (
-                        <tr key={driver.id} className="hover:bg-slate-50/50 transition-colors">
-                          <td className="px-6 py-4">
-                            <div className="font-extrabold text-slate-900 text-sm flex items-center gap-2">
-                              {driver.name}
-                            </div>
-                            <div className="text-[10px] text-slate-400 font-mono mt-0.5 uppercase">SYSTEM-ID: {driver.id} • {driver.profileInfo?.phone || '(312) 555-0192'}</div>
-                          </td>
-                          <td className="px-6 py-4">
-                            <button
-                              type="button"
-                              onClick={() => setEditingDriver(driver)}
-                              className={`px-2.5 py-1 rounded-lg text-[10px] font-black uppercase tracking-wider border transition-all ${
-                                driver.taxClassification === 'W2'
-                                  ? 'bg-indigo-50 text-indigo-800 border-indigo-200/80 hover:bg-indigo-100'
-                                  : 'bg-amber-50 text-amber-900 border-amber-200/80 hover:bg-amber-100'
-                              }`}
-                              title="Click to manage full profile and tax classification"
-                            >
-                              {driver.taxClassification || '1099-NEC'}
-                            </button>
-                          </td>
-                          <td className="px-6 py-4 font-mono font-bold text-slate-700">
-                            {driver.truckId}
-                          </td>
-                          <td className="px-6 py-4 font-mono">
-                            {driver.cdlExpiry}
-                          </td>
-                          <td className="px-6 py-4 font-mono">
-                            {driver.medCertExpiry}
-                          </td>
-                          <td className="px-6 py-4">
-                            <div className="flex flex-col gap-1">
-                              <span className={`px-2 py-0.5 rounded text-[10px] font-bold w-fit uppercase ${
-                                driver.criticalViolations > 2 ? 'bg-rose-100 text-rose-800' : 'bg-slate-100 text-slate-600'
-                              }`}>
-                                {driver.criticalViolations} Deficiencies
-                              </span>
-                              {driver.isHighRisk && (
-                                <span className="text-rose-600 font-extrabold text-[9px] uppercase tracking-wider flex items-center gap-1">
-                                  ⚠️ MANDATORY AUDIT
-                                </span>
-                              )}
-                            </div>
-                          </td>
-                          <td className="px-6 py-4">
-                            <StatusBadge status={driver.overallStatus} />
-                          </td>
-                          <td className="px-6 py-4 text-right">
-                            <div className="inline-flex gap-2.5">
-                              <button 
-                                onClick={() => setEditingDriver(driver)}
-                                className="p-1 text-slate-500 hover:text-slate-850 hover:bg-slate-100 transition-colors rounded"
-                                title={currentUser.role === 'Fleet Manager' ? 'Change vehicle allocation only' : 'Modify entire record'}
-                              >
-                                <Edit2 size={13} />
-                              </button>
-                              
-                              {currentUser.role === 'Administrator' && (
-                                <button 
-                                  onClick={() => handleDeleteDriver(driver.id)}
-                                  className="p-1 text-rose-500 hover:text-rose-700 hover:bg-rose-50 transition-colors rounded"
-                                  title="Erase record permanently"
-                                >
-                                  <Trash2 size={13} />
-                                </button>
-                              )}
-                            </div>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* VEHICLES TAB */}
-          {activeTab === 'vehicles' && currentUser.role !== 'Driver' && (
-            <div className="space-y-6 animate-fade-in">
-              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-                <div>
-                  <h3 className="text-lg font-black text-slate-900 tracking-tight">Heavy Vehicle Fleet Manifest</h3>
-                  <p className="text-xs text-slate-500 mt-0.5">Track truck inspection cycles, monitor maintenance updates, and adjust route dispatching.</p>
-                </div>
-
-                {currentUser.role === 'Administrator' && (
-                  <button 
-                    onClick={() => setIsAddingVehicle(true)}
-                    className="bg-slate-900 hover:bg-slate-850 text-white font-bold text-xs py-2 px-4 rounded-lg shadow-sm flex items-center gap-1.5 uppercase tracking-wider"
-                  >
-                    <Plus size={14} /> Register Fleet Equipment
-                  </button>
-                )}
-              </div>
-
-              {/* predictive forecasting HUD */}
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-4 bg-slate-900 border border-slate-850 p-5 rounded-2xl text-white">
-                {/* Active Pace Simulator */}
-                <div className="md:col-span-2 bg-slate-950/60 p-4 rounded-xl border border-slate-800 flex flex-col justify-between">
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <TrendingUp className="text-blue-400 w-4 h-4 animate-pulse" />
-                      <span className="text-[10px] uppercase font-black tracking-widest text-blue-400 font-mono">Dynamic Workload Simulator</span>
-                    </div>
-                    <h4 className="text-xs font-bold text-slate-105 mt-2">Active Fleet Operations Pace</h4>
-                    <p className="text-[11px] text-slate-400 mt-1 leading-relaxed">
-                      Toggle active simulated workload pace scales to instantly recalculate all safety intervals and months remaining for vehicle inspections.
-                    </p>
-                  </div>
-                  
-                  <div className="flex flex-wrap gap-1 mt-3">
-                    {[
-                      { label: 'Idle / Local', val: 0.5 },
-                      { label: 'Normal Work', val: 1.0 },
-                      { label: 'Ramped Route', val: 1.5 },
-                      { label: 'Seasonal Rush', val: 2.0 },
-                      { label: 'Extreme Pace', val: 3.0 }
-                    ].map(opt => (
-                      <button
-                        key={opt.val}
-                        type="button"
-                        onClick={() => setFleetPaceMultiplier(opt.val)}
-                        className={`px-2 py-1 rounded text-[9px] font-bold uppercase transition-all ${
-                          fleetPaceMultiplier === opt.val
-                            ? 'bg-blue-600 text-white shadow-xs border-transparent'
-                            : 'bg-slate-800 text-slate-300 hover:bg-slate-750 border border-slate-700'
-                        }`}
-                      >
-                        {opt.val}x - {opt.label}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Metric 1 */}
-                <div className="bg-slate-950/60 p-4 rounded-xl border border-slate-800 flex flex-col justify-between">
-                  <div>
-                    <span className="text-[9px] uppercase font-bold text-rose-450 font-mono tracking-wider">Critical Risk Triggers</span>
-                    <h4 className="text-2xl font-black text-rose-500 mt-1">{fleetForecastAnalysis.criticalCount}</h4>
-                    <p className="text-[10px] text-slate-400 mt-1 leading-tight">
-                      Vehicles that have exceeded their recommended inspection limits.
-                    </p>
-                  </div>
-                  <div className="mt-2 pt-2 border-t border-slate-800/60 flex items-center justify-between text-[10px]">
-                    <span className="text-slate-500">Fleet status:</span>
-                    <span className={`font-mono font-bold text-[9px] ${fleetForecastAnalysis.criticalCount > 0 ? 'text-rose-400' : 'text-emerald-400'}`}>
-                      {fleetForecastAnalysis.criticalCount > 0 ? 'HIGH RISK' : 'SECURE'}
-                    </span>
-                  </div>
-                </div>
-
-                {/* Metric 2 */}
-                <div className="bg-slate-950/60 p-4 rounded-xl border border-slate-800 flex flex-col justify-between">
-                  <div>
-                    <span className="text-[9px] uppercase font-bold text-amber-450 font-mono tracking-wider">Upcoming Checkups</span>
-                    <h4 className="text-2xl font-black text-amber-500 mt-1">{fleetForecastAnalysis.warningCount}</h4>
-                    <p className="text-[10px] text-slate-400 mt-1 leading-tight">
-                      Vehicles projected to cross mileage thresholds within the next 30 days.
-                    </p>
-                  </div>
-                  <div className="mt-2 pt-2 border-t border-slate-800/60 flex items-center justify-between text-[10px]">
-                    <span className="text-slate-500">Average remaining cap:</span>
-                    <span className="font-mono font-bold text-indigo-300 text-[9px]">
-                      {fleetForecastAnalysis.averageRemainingMiles.toLocaleString()} mi
-                    </span>
-                  </div>
-                </div>
-              </div>
-
-              {/* Vehicle table list */}
-              <div className="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden">
-                <div className="overflow-x-auto">
-                  <table className="w-full text-left border-collapse min-w-[900px] text-xs">
-                    <thead>
-                      <tr className="bg-slate-50 border-b border-slate-200">
-                        <th className="px-6 py-4 font-bold text-slate-400 uppercase tracking-widest text-[10px]">Equipment Unit #</th>
-                        <th className="px-6 py-4 font-bold text-slate-400 uppercase tracking-widest text-[10px]">Current Odometer</th>
-                        <th className="px-6 py-4 font-bold text-slate-400 uppercase tracking-widest text-[10px]">Distance & Safety Check Interval</th>
-                        <th className="px-6 py-4 font-bold text-slate-400 uppercase tracking-widest text-[10px]">Time Horizon Forecast</th>
-                        <th className="px-6 py-4 font-bold text-slate-400 uppercase tracking-widest text-[10px]">State/Cal Status</th>
-                        <th className="px-6 py-4 font-bold text-slate-400 uppercase tracking-widest text-[10px] text-right">Actions</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-100">
-                      {fleetForecastAnalysis.items.map((v) => {
-                        const progressPercent = Math.min(100, Math.max(0, (v.traveledSinceCheck / v.interval) * 100));
-                        return (
-                          <tr key={v.id} className="hover:bg-slate-50/50 transition-colors">
-                            <td className="px-6 py-4">
-                              <div className="font-extrabold text-slate-850 text-sm">{v.unitNumber}</div>
-                              <div className="text-[10px] text-slate-400 font-mono mt-0.5">{v.vin}</div>
-                            </td>
-                            <td className="px-6 py-4">
-                              <div className="font-mono font-bold text-slate-800">
-                                {(v.currentMileage || 0).toLocaleString()} mi
-                              </div>
-                              <div className="text-[10px] text-slate-500 mt-0.5 flex items-center gap-1">
-                                <TrendingUp size={11} className="text-blue-500 text-slate-400" />
-                                <span>{(v.monthlyRate || 0).toLocaleString()} mi/month</span>
-                              </div>
-                            </td>
-                            <td className="px-6 py-4 min-w-[200px]">
-                              <div className="flex justify-between items-center text-[9px] font-bold text-slate-500 mb-1">
-                                <span>{v.traveledSinceCheck.toLocaleString()} mi run</span>
-                                <span>limit: {v.interval.toLocaleString()} mi</span>
-                              </div>
-                              <div className="w-full bg-slate-100 rounded-full h-1.5 overflow-hidden">
-                                <div 
-                                  className={`h-full rounded-full transition-all duration-500 ${
-                                    v.risk === 'critical' ? 'bg-rose-500' :
-                                    v.risk === 'warning' ? 'bg-amber-400' :
-                                    'bg-emerald-500'
-                                  }`} 
-                                  style={{ width: `${progressPercent}%` }}
-                                />
-                              </div>
-                              <div className="text-[10px] mt-1 font-semibold">
-                                {v.overdue ? (
-                                  <span className="text-rose-600 font-extrabold text-[9px] uppercase tracking-wider">OVERDUE BY {Math.abs(v.remainingMiles).toLocaleString()} mi</span>
-                                ) : (
-                                  <span className="text-slate-500 text-[9px] uppercase tracking-wider">{v.remainingMiles.toLocaleString()} mi left</span>
-                                )}
-                              </div>
-                            </td>
-                            <td className="px-6 py-4 font-mono">
-                              {v.overdue ? (
-                                <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-rose-50 text-rose-700 font-extrabold text-[9px] border border-rose-100 uppercase animate-pulse">
-                                  ⚠️ Over Limit
-                                </span>
-                              ) : (
-                                <div>
-                                  <div className={`font-extrabold text-[11px] ${v.risk === 'warning' ? 'text-amber-600' : 'text-slate-750'}`}>
-                                    In ~{v.monthsRemaining.toFixed(1)} months
-                                  </div>
-                                  <div className="text-[9px] text-slate-400 mt-0.5">
-                                    Est. Service: {
-                                      (() => {
-                                        try {
-                                          const estDate = new Date();
-                                          estDate.setMonth(estDate.getMonth() + v.monthsRemaining);
-                                          return estDate.toLocaleDateString('en-US', { year: '2-digit', month: 'short' });
-                                        } catch {
-                                          return 'N/A';
-                                        }
-                                      })()
-                                    }
-                                  </div>
-                                </div>
-                              )}
-                            </td>
-                            <td className="px-6 py-4">
-                              <div className="font-mono text-slate-700 text-[10px]">{v.inspectionExpiry}</div>
-                              <div className="mt-1">
-                                <span className={`px-2 py-0.5 rounded text-[8px] font-black uppercase tracking-wider ${
-                                  v.maintenanceStatus === 'Up to Date' ? 'bg-emerald-100 text-emerald-800' :
-                                  v.maintenanceStatus === 'Scheduled' ? 'bg-amber-100 text-amber-800 font-mono' :
-                                  'bg-rose-100 text-rose-800'
-                                }`}>
-                                  {v.maintenanceStatus}
-                                </span>
-                              </div>
-                            </td>
-                            <td className="px-6 py-4 text-right">
-                              <div className="inline-flex gap-2">
-                                <button 
-                                  onClick={() => setEditingVehicle(v)}
-                                  className="p-1 text-slate-500 hover:text-slate-850 hover:bg-slate-100 transition-colors rounded"
-                                  title="Update maintenance or inspection stats"
-                                >
-                                  <Edit2 size={13} />
-                                </button>
-                                
-                                {currentUser.role === 'Administrator' && (
-                                  <button 
-                                    onClick={() => handleDeleteVehicle(v.id)}
-                                    className="p-1 text-rose-500 hover:text-rose-700 hover:bg-rose-50 transition-colors rounded"
-                                    title="Unregister equipment permanently"
-                                  >
-                                    <Trash2 size={13} />
-                                  </button>
-                                )}
-                              </div>
-                            </td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* APPROVALS TAB */}
-          {activeTab === 'inbox' && currentUser.role !== 'Driver' && (
-            <ActionCenter 
-              requests={renewalRequests} 
-              currentUser={currentUser} 
-              onApprove={handleApproveRequest} 
-              onDecline={handleDeclineRequest} 
+          {/* SAFETY & COMPLIANCE TAB (Consolidated Safety Hub) */}
+          {(activeTab === 'safety' || activeTab === 'drivers' || activeTab === 'vehicles' || activeTab === 'inbox') && currentUser.role !== 'Driver' && (
+            <SafetyHub
+              drivers={drivers}
+              vehicles={vehicles}
+              incidents={incidents}
+              renewalRequests={renewalRequests}
+              currentUser={currentUser}
+              activeSubTab={safetySubTab}
+              onSubTabChange={(sub) => setSafetySubTab(sub)}
+              onInspectDriver={(driver) => setEditingDriver(driver)}
+              onAddDriver={() => setIsAddingDriver(true)}
+              onEditDriver={(driver) => setEditingDriver(driver)}
+              onDeleteDriver={handleDeleteDriver}
+              onAddVehicle={() => setIsAddingVehicle(true)}
+              onEditVehicle={(vehicle) => setEditingVehicle(vehicle)}
+              onDeleteVehicle={handleDeleteVehicle}
+              onApproveRenewal={handleApproveRequest}
+              onDeclineRenewal={handleDeclineRequest}
+              fleetPaceMultiplier={fleetPaceMultiplier}
+              onSetFleetPaceMultiplier={setFleetPaceMultiplier}
+              maintenanceInvoices={maintenanceInvoices}
+              onAddMaintenanceInvoice={handleAddMaintenanceInvoice}
+              onDeleteMaintenanceInvoice={handleDeleteMaintenanceInvoice}
             />
           )}
 
@@ -1767,6 +1776,8 @@ export default function App() {
               payStubs={payStubs}
               incidents={incidents}
               onReportIncident={handleReportIncident}
+              driverExpenses={driverExpenses}
+              onAddDriverExpense={handleAddDriverExpense}
             />
           )}
 
@@ -1785,8 +1796,8 @@ export default function App() {
             />
           )}
 
-          {/* WEEKLY PAYROLL HQ ACTIVE */}
-          {activeTab === 'payroll' && currentUser.role !== 'Driver' && (
+          {/* ACCOUNTING & PAYROLL HQ ACTIVE */}
+          {(activeTab === 'accounting' || activeTab === 'payroll') && currentUser.role !== 'Driver' && (
             <PayrollPortal 
               payStubs={payStubs}
               loads={loads}
@@ -1794,10 +1805,119 @@ export default function App() {
               currentUserRole={currentUser.role}
               companyInfo={companyInfo}
               onUpdateStubStatus={handleUpdateStubStatus}
+              maintenanceInvoices={maintenanceInvoices}
+              driverExpenses={driverExpenses}
+              fuelTransactions={fuelTransactions}
+              onImportFuelTransactions={handleImportFuelTransactions}
             />
           )}
 
         </main>
+
+        {/* Sticky Mobile Bottom Navigation Bar (Handheld Quick-Switch Rail) */}
+        <nav 
+          aria-label="Mobile Bottom Navigation"
+          className={`${viewportMode === 'desktop' ? 'hidden' : 'lg:hidden'} fixed bottom-0 inset-x-0 bg-white/95 backdrop-blur-md border-t border-slate-200 z-40 px-2 py-1.5 shadow-lg flex items-center justify-around`}
+        >
+          {currentUser.role !== 'Driver' ? (
+            <>
+              <button
+                type="button"
+                onClick={() => { setActiveTab('overview'); setIsMobileMenuOpen(false); }}
+                className={`flex flex-col items-center py-1 px-3 rounded-lg transition-colors ${
+                  activeTab === 'overview' ? 'text-blue-600 font-extrabold' : 'text-slate-500 hover:text-slate-900'
+                }`}
+              >
+                <LayoutDashboard size={18} />
+                <span className="text-[10px] mt-0.5 font-semibold">Overview</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => { handleNavigateToTab('safety'); setIsMobileMenuOpen(false); }}
+                className={`flex flex-col items-center py-1 px-3 rounded-lg relative transition-colors ${
+                  activeTab === 'safety' ? 'text-blue-600 font-extrabold' : 'text-slate-500 hover:text-slate-900'
+                }`}
+              >
+                <ShieldAlert size={18} />
+                <span className="text-[10px] mt-0.5 font-semibold">Safety</span>
+                {(expiredDocsCount > 0 || pendingRequestsCount > 0) && (
+                  <span className="absolute top-0.5 right-2 w-2 h-2 rounded-full bg-rose-500 ring-2 ring-white" />
+                )}
+              </button>
+
+              <button
+                type="button"
+                onClick={() => { handleNavigateToTab('dispatch'); setIsMobileMenuOpen(false); }}
+                className={`flex flex-col items-center py-1 px-3 rounded-lg relative transition-colors ${
+                  activeTab === 'dispatch' ? 'text-blue-600 font-extrabold' : 'text-slate-500 hover:text-slate-900'
+                }`}
+              >
+                <Compass size={18} />
+                <span className="text-[10px] mt-0.5 font-semibold">Dispatch</span>
+                {activeIncidentsCount > 0 && (
+                  <span className="absolute top-0.5 right-2 w-2 h-2 rounded-full bg-rose-500 ring-2 ring-white animate-pulse" />
+                )}
+              </button>
+
+              <button
+                type="button"
+                onClick={() => { handleNavigateToTab('accounting'); setIsMobileMenuOpen(false); }}
+                className={`flex flex-col items-center py-1 px-3 rounded-lg relative transition-colors ${
+                  activeTab === 'accounting' || activeTab === 'payroll' ? 'text-blue-600 font-extrabold' : 'text-slate-500 hover:text-slate-900'
+                }`}
+              >
+                <DollarSign size={18} />
+                <span className="text-[10px] mt-0.5 font-semibold">Payroll</span>
+                {payStubs.filter(s => s.status === 'Pending Review').length > 0 && (
+                  <span className="absolute top-0.5 right-2 w-2 h-2 rounded-full bg-amber-500 ring-2 ring-white" />
+                )}
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setIsMobileMenuOpen(true)}
+                className={`flex flex-col items-center py-1 px-3 rounded-lg transition-colors ${
+                  isMobileMenuOpen || activeTab === 'logs' ? 'text-blue-600 font-extrabold' : 'text-slate-500 hover:text-slate-900'
+                }`}
+              >
+                <MoreHorizontal size={18} />
+                <span className="text-[10px] mt-0.5 font-semibold">More</span>
+              </button>
+            </>
+          ) : (
+            <>
+              <button
+                type="button"
+                onClick={() => { setActiveTab('portal'); setIsMobileMenuOpen(false); }}
+                className={`flex flex-col items-center py-1 px-3 rounded-lg transition-colors ${
+                  activeTab === 'portal' ? 'text-blue-600 font-extrabold' : 'text-slate-500 hover:text-slate-900'
+                }`}
+              >
+                <Fingerprint size={18} />
+                <span className="text-[10px] mt-0.5 font-semibold">My Desk</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => { setActiveTab('portal'); setIsMobileMenuOpen(false); }}
+                className="flex flex-col items-center py-1 px-3 rounded-lg text-slate-500 hover:text-slate-900"
+              >
+                <FileBadge2 size={18} />
+                <span className="text-[10px] mt-0.5 font-semibold">Certs</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setIsMobileMenuOpen(true)}
+                className="flex flex-col items-center py-1 px-3 rounded-lg text-slate-500 hover:text-slate-900"
+              >
+                <MoreHorizontal size={18} />
+                <span className="text-[10px] mt-0.5 font-semibold">Menu</span>
+              </button>
+            </>
+          )}
+        </nav>
       </div>
 
       {/* --- ADD DRIVER MODAL (ADMIN ONLY) --- */}

@@ -292,7 +292,7 @@ export const SUPPLEMENTARY_IFTA_LOADS: DispatchLoad[] = [
     calculatedMiles: 712,
     driverId: 'D5',
     driverName: 'Linda Garcia',
-    truckId: 'TRK-505',
+    truckId: 'TRK-101',
     ratePerMile: 2.80,
     payout: 1993.60,
     status: 'Delivered',
