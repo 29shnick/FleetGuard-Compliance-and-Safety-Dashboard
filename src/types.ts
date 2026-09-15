@@ -188,6 +188,9 @@ export interface DispatchLoad {
   notes?: string;
   rateConFile?: { name: string; size: number; dataUrl?: string };
   bolFile?: { name: string; size: number; dataUrl?: string };
+  lumperReceiptFile?: { name: string; size: number; dataUrl?: string; amount?: number; notes?: string };
+  lumperAmount?: number;
+  billingStatus?: 'Pending Documents' | 'Ready for Billing' | 'Sent to Factoring' | 'Paid';
   invoiceDetails?: {
     invoiceNumber: string;
     billingDate: string;
@@ -199,6 +202,10 @@ export interface DispatchLoad {
     totalDue: number;
     subtotal: number;
     fees: number;
+    lumperAmount?: number;
+    billingStatus?: 'Ready for Billing' | 'Sent to Factoring' | 'Paid';
+    billingPackageGeneratedAt?: string;
+    notes?: string;
   };
 }
 

@@ -34,7 +34,9 @@ import {
   Activity,
   PhoneCall,
   Scale,
-  FileText
+  FileText,
+  Check,
+  Sparkles
 } from 'lucide-react';
 
 interface DriverPortalProps {
@@ -50,6 +52,14 @@ interface DriverPortalProps {
   onReportIncident?: (incident: Omit<IncidentReport, 'id' | 'reportedAt' | 'status'>) => void;
   driverExpenses?: DriverExpense[];
   onAddDriverExpense?: (expense: Omit<DriverExpense, 'id' | 'submittedAt' | 'payrollStatus'>) => void;
+  onUpdateLoadDocs?: (
+    id: string,
+    rateConFile?: { name: string; size: number; dataUrl?: string },
+    bolFile?: { name: string; size: number; dataUrl?: string },
+    invoiceDetails?: DispatchLoad['invoiceDetails'],
+    lumperReceiptFile?: { name: string; size: number; dataUrl?: string; amount?: number; notes?: string },
+    billingStatus?: DispatchLoad['billingStatus']
+  ) => void;
 }
 
 export default function DriverPortal({ 
@@ -64,7 +74,8 @@ export default function DriverPortal({
   incidents = [],
   onReportIncident,
   driverExpenses = [],
-  onAddDriverExpense
+  onAddDriverExpense,
+  onUpdateLoadDocs
 }: DriverPortalProps) {
   const [cdlDate, setCdlDate] = useState('');
   const [medDate, setMedDate] = useState('');
@@ -761,6 +772,166 @@ export default function DriverPortal({
                 <div className="flex justify-between items-center text-[10px] font-mono border-t border-b border-slate-200/45 py-2">
                   <span className="text-slate-500">Est. Distance: <strong className="text-slate-800">{load.calculatedMiles} mi</strong></span>
                   <span className="text-slate-500">Payload Weight: <strong className="text-slate-800">{load.weightLbs.toLocaleString()} lbs</strong></span>
+                </div>
+
+                {/* Driver Documentation & Auto-Billing Workflow */}
+                <div className="bg-white p-3 rounded-lg border border-slate-200 space-y-2 text-[11px]">
+                  <div className="flex items-center justify-between text-slate-800 font-bold border-b pb-1.5">
+                    <span className="flex items-center gap-1.5 text-indigo-900">
+                      <FileText size={13} className="text-indigo-600" /> Trip Billing Documentation
+                    </span>
+                    {load.rateConFile && load.bolFile ? (
+                      <span className="text-[9px] bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded-full font-black uppercase tracking-wider flex items-center gap-1">
+                        <Check size={10} /> Billing Ready
+                      </span>
+                    ) : (
+                      <span className="text-[9px] bg-amber-50 text-amber-800 px-2 py-0.5 rounded font-mono">
+                        {load.rateConFile ? '1/2 Docs' : '0/2 Docs'}
+                      </span>
+                    )}
+                  </div>
+
+                  <div className="space-y-1.5">
+                    {/* Rate Con Status */}
+                    <div className="flex items-center justify-between">
+                      <span className="text-slate-500 text-[10px]">Dispatch Rate Con:</span>
+                      {load.rateConFile ? (
+                        <span className="text-emerald-700 font-bold text-[10px] flex items-center gap-1">
+                          <Check size={11} /> Attached ({load.rateConFile.name})
+                        </span>
+                      ) : (
+                        <span className="text-slate-400 text-[10px] italic">Awaiting Dispatch</span>
+                      )}
+                    </div>
+
+                    {/* Driver BOL (POD) */}
+                    <div className="flex items-center justify-between">
+                      <span className="text-slate-500 text-[10px]">Signed BOL (POD):</span>
+                      {load.bolFile ? (
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-emerald-700 font-bold text-[10px] flex items-center gap-1">
+                            <Check size={11} /> Uploaded
+                          </span>
+                          {onUpdateLoadDocs && (
+                            <label className="text-[9px] text-indigo-600 hover:text-indigo-800 underline cursor-pointer">
+                              Replace
+                              <input 
+                                type="file" 
+                                accept=".pdf,.png,.jpg,.jpeg" 
+                                className="hidden" 
+                                onChange={(e) => {
+                                  if (e.target.files?.[0]) {
+                                    const file = e.target.files[0];
+                                    const bolData = {
+                                      name: file.name,
+                                      size: Math.round(file.size / 1024),
+                                      dataUrl: URL.createObjectURL(file)
+                                    };
+                                    onUpdateLoadDocs(load.id, load.rateConFile, bolData, undefined, load.lumperReceiptFile);
+                                  }
+                                }} 
+                              />
+                            </label>
+                          )}
+                        </div>
+                      ) : (
+                        onUpdateLoadDocs && (
+                          <label className="bg-amber-100 hover:bg-amber-200 text-amber-900 border border-amber-300 px-2 py-0.5 rounded text-[10px] font-bold cursor-pointer transition-colors inline-flex items-center gap-1">
+                            + Upload Signed BOL
+                            <input 
+                              type="file" 
+                              accept=".pdf,.png,.jpg,.jpeg" 
+                              className="hidden" 
+                              onChange={(e) => {
+                                if (e.target.files?.[0]) {
+                                  const file = e.target.files[0];
+                                  const bolData = {
+                                    name: file.name,
+                                    size: Math.round(file.size / 1024),
+                                    dataUrl: URL.createObjectURL(file)
+                                  };
+                                  onUpdateLoadDocs(load.id, load.rateConFile, bolData, undefined, load.lumperReceiptFile);
+                                }
+                              }} 
+                            />
+                          </label>
+                        )
+                      )}
+                    </div>
+
+                    {/* Driver Lumper */}
+                    <div className="flex items-center justify-between">
+                      <span className="text-slate-500 text-[10px]">Lumper Receipt:</span>
+                      {load.lumperReceiptFile || (load.lumperAmount && load.lumperAmount > 0) ? (
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-blue-700 font-bold text-[10px] flex items-center gap-1">
+                            <Receipt size={11} /> ${(load.lumperAmount || load.lumperReceiptFile?.amount || 0).toFixed(2)}
+                          </span>
+                          {onUpdateLoadDocs && (
+                            <label className="text-[9px] text-blue-600 hover:text-blue-800 underline cursor-pointer">
+                              Change
+                              <input 
+                                type="file" 
+                                accept=".pdf,.png,.jpg,.jpeg" 
+                                className="hidden" 
+                                onChange={(e) => {
+                                  if (e.target.files?.[0]) {
+                                    const file = e.target.files[0];
+                                    const amtStr = prompt('Enter reimbursable lumper amount ($ USD):', '185.00');
+                                    const amt = parseFloat(amtStr || '0');
+                                    if (amt > 0) {
+                                      const lumperData = {
+                                        name: file.name,
+                                        size: Math.round(file.size / 1024),
+                                        dataUrl: URL.createObjectURL(file),
+                                        amount: amt
+                                      };
+                                      onUpdateLoadDocs(load.id, load.rateConFile, load.bolFile, undefined, lumperData);
+                                    }
+                                  }
+                                }} 
+                              />
+                            </label>
+                          )}
+                        </div>
+                      ) : (
+                        onUpdateLoadDocs && (
+                          <label className="text-[10px] text-indigo-600 hover:text-indigo-800 underline cursor-pointer font-semibold">
+                            + Upload Lumper
+                            <input 
+                              type="file" 
+                              accept=".pdf,.png,.jpg,.jpeg" 
+                              className="hidden" 
+                              onChange={(e) => {
+                                if (e.target.files?.[0]) {
+                                  const file = e.target.files[0];
+                                  const amtStr = prompt('Enter reimbursable lumper amount ($ USD):', '185.00');
+                                  const amt = parseFloat(amtStr || '0');
+                                  if (amt > 0) {
+                                    const lumperData = {
+                                      name: file.name,
+                                      size: Math.round(file.size / 1024),
+                                      dataUrl: URL.createObjectURL(file),
+                                      amount: amt
+                                    };
+                                    onUpdateLoadDocs(load.id, load.rateConFile, load.bolFile, undefined, lumperData);
+                                  }
+                                }
+                              }} 
+                            />
+                          </label>
+                        )
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Auto-compiled Billing Notification */}
+                  {load.rateConFile && load.bolFile && (
+                    <div className="bg-emerald-50 border border-emerald-200 rounded p-2 text-[10px] text-emerald-800 font-semibold flex items-center gap-1.5 mt-1">
+                      <Sparkles size={12} className="text-emerald-600 shrink-0 animate-pulse" />
+                      <span>Invoice <strong>INV-{load.loadNumber}</strong> automatically compiled & ready in Accounting Hub!</span>
+                    </div>
+                  )}
                 </div>
 
                 {onUpdateLoadStatus && (

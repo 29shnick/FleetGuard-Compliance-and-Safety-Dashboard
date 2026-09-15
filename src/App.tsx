@@ -144,12 +144,118 @@ export default function App() {
     const saved = localStorage.getItem('fg_loads');
     if (saved) {
       const parsed: DispatchLoad[] = JSON.parse(saved);
-      return parsed.map(l => l.driverName.toLowerCase().includes('nikola') ? { ...l, driverId: 'D5', driverName: 'Linda Garcia' } : l);
+      return parsed.map(l => {
+        let load = l.driverName?.toLowerCase().includes('nikola') ? { ...l, driverId: 'D5', driverName: 'Linda Garcia' } : l;
+        // Upgrade LD-1 to have complete Rate Con, BOL, and Lumper if not present
+        if (load.id === 'LD-1' && !load.rateConFile) {
+          load = {
+            ...load,
+            status: 'Delivered',
+            rateConFile: { name: 'RateCon_LD3942_ApexLogistics.pdf', size: 184 },
+            bolFile: { name: 'Signed_BOL_POD_LD3942_Stamp.pdf', size: 245 },
+            lumperReceiptFile: { name: 'Sysco_Lumper_Receipt_LD3942.pdf', size: 175, amount: 220.00 },
+            lumperAmount: 220.00,
+            billingStatus: 'Ready for Billing',
+            invoiceDetails: {
+              invoiceNumber: 'INV-LD-3942',
+              billingDate: '2026-05-24',
+              dueDate: '2026-06-23',
+              shipperName: 'Apex Logistics Freight Brokerage',
+              consigneeName: 'New York Commercial Cold Storage Hub',
+              taxId: '36-9812019',
+              terms: 'Net 30 / Factoring QuickPay',
+              subtotal: 1851.20,
+              fees: 185.12,
+              lumperAmount: 220.00,
+              totalDue: 2256.32,
+              billingStatus: 'Ready for Billing',
+              billingPackageGeneratedAt: '2026-05-24 14:30',
+              notes: 'Automated billing package synthesized from verified Rate Con (Dispatch), Signed BOL POD (Driver), and reimbursable Lumper receipts.'
+            }
+          };
+        } else if (load.id === 'LD-2' && !load.rateConFile) {
+          load = {
+            ...load,
+            rateConFile: { name: 'RateCon_LD2051_CHRobinson.pdf', size: 210 },
+            billingStatus: 'Pending Documents'
+          };
+        }
+        return load;
+      });
     }
     return [
-      { id: 'LD-1', loadNumber: 'LD-3942', originHub: 'Chicago, IL', destinationHub: 'New York, NY', calculatedMiles: 712, driverId: 'D2', driverName: 'James Wilson', truckId: 'TRK-202', ratePerMile: 2.60, payout: 1851.20, status: 'Dispatched', cargoType: 'Refrigerated Food', weightLbs: 38000, submittedAt: '2026-05-24 10:15' },
-      { id: 'LD-2', loadNumber: 'LD-2051', originHub: 'Dallas, TX', destinationHub: 'Los Angeles, CA', calculatedMiles: 1400, driverId: 'D5', driverName: 'Linda Garcia', truckId: 'TRK-101', ratePerMile: 3.10, payout: 4340.00, status: 'Active', cargoType: 'Electronics Secure', weightLbs: 15500, submittedAt: '2026-05-24 11:30' },
-      { id: 'LD-3', loadNumber: 'LD-8103', originHub: 'Miami, FL', destinationHub: 'Atlanta, GA', calculatedMiles: 660, driverId: 'Unassigned', driverName: 'Unassigned', truckId: 'None', ratePerMile: 2.15, payout: 1419.00, status: 'Pending', cargoType: 'Dry Van General', weightLbs: 24000, submittedAt: '2026-05-24 12:45' }
+      { 
+        id: 'LD-1', 
+        loadNumber: 'LD-3942', 
+        originHub: 'Chicago, IL', 
+        destinationHub: 'New York, NY', 
+        calculatedMiles: 712, 
+        driverId: 'D2', 
+        driverName: 'James Wilson', 
+        truckId: 'TRK-202', 
+        ratePerMile: 2.60, 
+        payout: 1851.20, 
+        status: 'Delivered', 
+        cargoType: 'Refrigerated Food', 
+        weightLbs: 38000, 
+        submittedAt: '2026-05-24 10:15',
+        rateConFile: { name: 'RateCon_LD3942_ApexLogistics.pdf', size: 184 },
+        bolFile: { name: 'Signed_BOL_POD_LD3942_Stamp.pdf', size: 245 },
+        lumperReceiptFile: { name: 'Sysco_Lumper_Receipt_LD3942.pdf', size: 175, amount: 220.00 },
+        lumperAmount: 220.00,
+        billingStatus: 'Ready for Billing',
+        invoiceDetails: {
+          invoiceNumber: 'INV-LD-3942',
+          billingDate: '2026-05-24',
+          dueDate: '2026-06-23',
+          shipperName: 'Apex Logistics Freight Brokerage',
+          consigneeName: 'New York Commercial Cold Storage Hub',
+          taxId: '36-9812019',
+          terms: 'Net 30 / Factoring QuickPay',
+          subtotal: 1851.20,
+          fees: 185.12,
+          lumperAmount: 220.00,
+          totalDue: 2256.32,
+          billingStatus: 'Ready for Billing',
+          billingPackageGeneratedAt: '2026-05-24 14:30',
+          notes: 'Automated billing package synthesized from verified Rate Con (Dispatch), Signed BOL POD (Driver), and reimbursable Lumper receipts.'
+        }
+      },
+      { 
+        id: 'LD-2', 
+        loadNumber: 'LD-2051', 
+        originHub: 'Dallas, TX', 
+        destinationHub: 'Los Angeles, CA', 
+        calculatedMiles: 1400, 
+        driverId: 'D5', 
+        driverName: 'Linda Garcia', 
+        truckId: 'TRK-101', 
+        ratePerMile: 3.10, 
+        payout: 4340.00, 
+        status: 'Dispatched', 
+        cargoType: 'Electronics Secure', 
+        weightLbs: 15500, 
+        submittedAt: '2026-05-24 11:30',
+        rateConFile: { name: 'RateCon_LD2051_CHRobinson.pdf', size: 210 },
+        billingStatus: 'Pending Documents'
+      },
+      { 
+        id: 'LD-3', 
+        loadNumber: 'LD-8103', 
+        originHub: 'Miami, FL', 
+        destinationHub: 'Atlanta, GA', 
+        calculatedMiles: 660, 
+        driverId: 'Unassigned', 
+        driverName: 'Unassigned', 
+        truckId: 'None', 
+        ratePerMile: 2.15, 
+        payout: 1419.00, 
+        status: 'Pending', 
+        cargoType: 'Dry Van General', 
+        weightLbs: 24000, 
+        submittedAt: '2026-05-24 12:45',
+        billingStatus: 'Pending Documents'
+      }
     ];
   });
 
@@ -824,19 +930,69 @@ export default function App() {
     id: string,
     rateConFile?: { name: string; size: number; dataUrl?: string },
     bolFile?: { name: string; size: number; dataUrl?: string },
-    invoiceDetails?: DispatchLoad['invoiceDetails']
+    invoiceDetails?: DispatchLoad['invoiceDetails'],
+    lumperReceiptFile?: { name: string; size: number; dataUrl?: string; amount?: number; notes?: string },
+    billingStatus?: DispatchLoad['billingStatus']
   ) => {
     setLoads(prev => prev.map(l => {
       if (l.id === id) {
+        const effectiveRc = rateConFile !== undefined ? rateConFile : l.rateConFile;
+        const effectiveBol = bolFile !== undefined ? bolFile : l.bolFile;
+        const effectiveLumper = lumperReceiptFile !== undefined ? lumperReceiptFile : l.lumperReceiptFile;
+        const hasBothDocs = !!effectiveRc && !!effectiveBol;
+
+        let effectiveInvoice = invoiceDetails !== undefined ? invoiceDetails : l.invoiceDetails;
+        let effectiveBillingStatus = billingStatus !== undefined 
+          ? billingStatus 
+          : (l.billingStatus === 'Sent to Factoring' || l.billingStatus === 'Paid')
+          ? l.billingStatus
+          : hasBothDocs 
+          ? 'Ready for Billing' 
+          : 'Pending Documents';
+
+        // Automatically synthesize billing package invoice if both docs are present
+        if (hasBothDocs && !effectiveInvoice) {
+          const lumperTotal = effectiveLumper?.amount || l.lumperAmount || 0;
+          const fuel = Math.round(l.payout * 0.10 * 100) / 100;
+          const total = Math.round((l.payout + fuel + lumperTotal) * 100) / 100;
+
+          effectiveInvoice = {
+            invoiceNumber: `INV-${l.loadNumber}`,
+            billingDate: new Date().toISOString().split('T')[0],
+            dueDate: new Date(Date.now() + 30 * 86400000).toISOString().split('T')[0],
+            shipperName: `${l.originHub.split(',')[0]} Freight Brokerage & Logistics`,
+            consigneeName: `${l.destinationHub.split(',')[0]} Commercial Distribution Center`,
+            taxId: companyInfo?.feinTaxId || '36-9812019',
+            terms: 'Net 30 / Factoring QuickPay',
+            subtotal: l.payout,
+            fees: fuel,
+            lumperAmount: lumperTotal,
+            totalDue: total,
+            billingStatus: 'Ready for Billing',
+            billingPackageGeneratedAt: new Date().toISOString().replace('T', ' ').substring(0, 16),
+            notes: 'Automated billing package synthesized from verified Rate Con (Dispatch), Consignee-Signed BOL (Driver), and reimbursable Lumper receipts.'
+          };
+          effectiveBillingStatus = 'Ready for Billing';
+        }
+
         return {
           ...l,
-          rateConFile: rateConFile !== undefined ? rateConFile : l.rateConFile,
-          bolFile: bolFile !== undefined ? bolFile : l.bolFile,
-          invoiceDetails: invoiceDetails !== undefined ? invoiceDetails : l.invoiceDetails
+          rateConFile: effectiveRc,
+          bolFile: effectiveBol,
+          lumperReceiptFile: effectiveLumper,
+          lumperAmount: effectiveLumper?.amount !== undefined ? effectiveLumper.amount : l.lumperAmount,
+          invoiceDetails: effectiveInvoice,
+          billingStatus: effectiveBillingStatus
         };
       }
       return l;
     }));
+
+    logSecurityAction(
+      'Freight Billing Documentation Updated',
+      `Billing package dossier documents updated for shipment load ${id}. Automatic invoice pipeline synced.`,
+      'approval'
+    );
   };
 
   const handleUpdateStubStatus = (id: string, status: PayStub['status']) => {
@@ -1778,6 +1934,7 @@ export default function App() {
               onReportIncident={handleReportIncident}
               driverExpenses={driverExpenses}
               onAddDriverExpense={handleAddDriverExpense}
+              onUpdateLoadDocs={handleUpdateLoadDocs}
             />
           )}
 
@@ -1809,6 +1966,8 @@ export default function App() {
               driverExpenses={driverExpenses}
               fuelTransactions={fuelTransactions}
               onImportFuelTransactions={handleImportFuelTransactions}
+              onUpdateLoadDocs={handleUpdateLoadDocs}
+              onUpdateLoadStatus={handleUpdateLoadStatus}
             />
           )}
 

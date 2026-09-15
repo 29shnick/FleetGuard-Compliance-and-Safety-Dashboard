@@ -28,6 +28,7 @@ import SafetyRiskHeatmap from './SafetyRiskHeatmap';
 import SafetyRiskTrendChart from './SafetyRiskTrendChart';
 import ActionCenter from './ActionCenter';
 import VehicleMaintenanceModal from './VehicleMaintenanceModal';
+import MaintenanceCostProjectionChart from './MaintenanceCostProjectionChart';
 
 interface SafetyHubProps {
   drivers: Driver[];
@@ -933,6 +934,13 @@ export default function SafetyHub({
               </div>
             </div>
           </div>
+
+          {/* 6-Month Projected Maintenance Cost Bar Chart Component */}
+          <MaintenanceCostProjectionChart
+            vehicles={vehicles}
+            fleetPaceMultiplier={fleetPaceMultiplier}
+            maintenanceInvoices={maintenanceInvoices}
+          />
 
           {/* Mobile Equipment Cards (Visible on mobile/tablet screens) */}
           <div className="md:hidden space-y-3">

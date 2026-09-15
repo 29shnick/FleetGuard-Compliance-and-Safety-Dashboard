@@ -26,6 +26,7 @@ import { PayStub, DispatchLoad, Driver, CompanyInfo, MaintenanceInvoice, DriverE
 import { DEFAULT_COMPANY_INFO } from '../data';
 import IftaReportGenerator from './IftaReportGenerator';
 import ProfitLossAnalytics from './ProfitLossAnalytics';
+import AutomatedBillingHub from './AutomatedBillingHub';
 
 interface PayrollPortalProps {
   payStubs: PayStub[];
@@ -38,6 +39,15 @@ interface PayrollPortalProps {
   driverExpenses?: DriverExpense[];
   fuelTransactions?: FuelTransaction[];
   onImportFuelTransactions?: (transactions: FuelTransaction[]) => void;
+  onUpdateLoadDocs?: (
+    id: string,
+    rateConFile?: { name: string; size: number; dataUrl?: string },
+    bolFile?: { name: string; size: number; dataUrl?: string },
+    invoiceDetails?: DispatchLoad['invoiceDetails'],
+    lumperReceiptFile?: { name: string; size: number; dataUrl?: string; amount?: number; notes?: string },
+    billingStatus?: DispatchLoad['billingStatus']
+  ) => void;
+  onUpdateLoadStatus?: (id: string, status: DispatchLoad['status']) => void;
 }
 
 export default function PayrollPortal({
@@ -50,10 +60,17 @@ export default function PayrollPortal({
   maintenanceInvoices = [],
   driverExpenses = [],
   fuelTransactions = [],
-  onImportFuelTransactions
+  onImportFuelTransactions,
+  onUpdateLoadDocs,
+  onUpdateLoadStatus
 }: PayrollPortalProps) {
-  // Navigation State: 'settlements' | 'tax-forms' | 'ifta-report' | 'pnl-analytics'
-  const [activeSubTab, setActiveSubTab] = useState<'settlements' | 'tax-forms' | 'ifta-report' | 'pnl-analytics'>('settlements');
+  // Navigation State: 'billing-packages' | 'settlements' | 'tax-forms' | 'ifta-report' | 'pnl-analytics'
+  const [activeSubTab, setActiveSubTab] = useState<'billing-packages' | 'settlements' | 'tax-forms' | 'ifta-report' | 'pnl-analytics'>('billing-packages');
+
+  // Count ready billing packages
+  const readyBillingCount = useMemo(() => {
+    return loads.filter(l => l.rateConFile && l.bolFile && l.billingStatus !== 'Sent to Factoring' && l.billingStatus !== 'Paid').length;
+  }, [loads]);
 
   // Settlements View State
   const [selectedStub, setSelectedStub] = useState<PayStub | null>(null);
@@ -242,10 +259,25 @@ export default function PayrollPortal({
       </div>
 
       {/* Primary Sub-Navigation Tabs */}
-      <div className="flex border-b border-slate-200">
+      <div className="flex border-b border-slate-200 overflow-x-auto">
+        <button
+          onClick={() => setActiveSubTab('billing-packages')}
+          className={`pb-3 px-5 text-xs uppercase tracking-wider font-black transition-all border-b-2 flex items-center gap-2 shrink-0 ${
+            activeSubTab === 'billing-packages'
+              ? 'border-emerald-600 text-emerald-700'
+              : 'border-transparent text-slate-500 hover:text-slate-800'
+          }`}
+        >
+          <Sparkles className="text-emerald-500 animate-pulse" size={14} /> Automated Freight Billing
+          {readyBillingCount > 0 && (
+            <span className="bg-emerald-600 text-white text-[9px] px-1.5 py-0.5 rounded-full font-black">
+              {readyBillingCount} Ready
+            </span>
+          )}
+        </button>
         <button
           onClick={() => setActiveSubTab('settlements')}
-          className={`pb-3 px-6 text-xs uppercase tracking-wider font-black transition-all border-b-2 flex items-center gap-2 ${
+          className={`pb-3 px-5 text-xs uppercase tracking-wider font-black transition-all border-b-2 flex items-center gap-2 shrink-0 ${
             activeSubTab === 'settlements'
               ? 'border-indigo-600 text-indigo-700'
               : 'border-transparent text-slate-500 hover:text-slate-800'
@@ -260,19 +292,19 @@ export default function PayrollPortal({
             setFilingSuccessMsg('');
             setSignConsent(false);
           }}
-          className={`pb-3 px-6 text-xs uppercase tracking-wider font-black transition-all border-b-2 flex items-center gap-2 ${
+          className={`pb-3 px-5 text-xs uppercase tracking-wider font-black transition-all border-b-2 flex items-center gap-2 shrink-0 ${
             activeSubTab === 'tax-forms'
               ? 'border-indigo-600 text-indigo-700'
               : 'border-transparent text-slate-500 hover:text-slate-800'
           }`}
         >
-          <Sparkles className="text-amber-500 animate-pulse" size={14} /> Automated Tax Forms Hub
+          <Award className="text-amber-500" size={14} /> Automated Tax Forms Hub
         </button>
         <button
           onClick={() => {
             setActiveSubTab('ifta-report');
           }}
-          className={`pb-3 px-6 text-xs uppercase tracking-wider font-black transition-all border-b-2 flex items-center gap-2 ${
+          className={`pb-3 px-5 text-xs uppercase tracking-wider font-black transition-all border-b-2 flex items-center gap-2 shrink-0 ${
             activeSubTab === 'ifta-report'
               ? 'border-indigo-600 text-indigo-700'
               : 'border-transparent text-slate-500 hover:text-slate-800'
@@ -284,7 +316,7 @@ export default function PayrollPortal({
           onClick={() => {
             setActiveSubTab('pnl-analytics');
           }}
-          className={`pb-3 px-6 text-xs uppercase tracking-wider font-black transition-all border-b-2 flex items-center gap-2 ${
+          className={`pb-3 px-5 text-xs uppercase tracking-wider font-black transition-all border-b-2 flex items-center gap-2 shrink-0 ${
             activeSubTab === 'pnl-analytics'
               ? 'border-indigo-600 text-indigo-700'
               : 'border-transparent text-slate-500 hover:text-slate-800'
@@ -293,6 +325,18 @@ export default function PayrollPortal({
           <TrendingUp className="text-indigo-600" size={14} /> P&L Charts & Tax Deductions
         </button>
       </div>
+
+      {/* TAB 0: AUTOMATED FREIGHT BILLING PACKAGES */}
+      {activeSubTab === 'billing-packages' && (
+        <AutomatedBillingHub
+          loads={loads}
+          drivers={drivers}
+          driverExpenses={driverExpenses}
+          companyInfo={companyInfo}
+          onUpdateLoadDocs={onUpdateLoadDocs}
+          onUpdateLoadStatus={onUpdateLoadStatus}
+        />
+      )}
 
       {/* TAB 1: WEEKLY SETTLEMENTS */}
       {activeSubTab === 'settlements' && (

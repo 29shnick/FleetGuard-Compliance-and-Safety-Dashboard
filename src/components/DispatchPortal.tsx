@@ -277,26 +277,34 @@ export default function DispatchPortal({
 
         // Auto-compile invoice if both documents are ready
         let invoiceDetails = load.invoiceDetails;
-        if (hasRateCon && hasBOL) {
+        const isCompletePackage = hasRateCon && hasBOL;
+
+        if (isCompletePackage) {
           // pre-fill draft
-          const generatedInvoiceNo = `INV-${load.loadNumber}-${Math.floor(100 + Math.random() * 900)}`;
+          const generatedInvoiceNo = `INV-${load.loadNumber}`;
           const today = new Date();
           const due = new Date();
           due.setDate(today.getDate() + 30);
           
           const formatDt = (d: Date) => d.toISOString().split('T')[0];
+          const fuel = Math.round(load.payout * 0.10 * 100) / 100;
+          const lumper = load.lumperAmount || load.lumperReceiptFile?.amount || 0;
 
           invoiceDetails = {
             invoiceNumber: generatedInvoiceNo,
             billingDate: formatDt(today),
             dueDate: formatDt(due),
-            shipperName: docType === 'rateCon' ? 'FASTGATE LOGISTICS PARTNERS' : 'MIDWEST REGIONAL FREIGHTS LLC',
-            consigneeName: 'EAST COAST CARGO INTAKE CORP',
-            taxId: '36-9482019',
-            terms: 'Net 30',
+            shipperName: `${load.originHub.split(',')[0]} Freight Logistics Brokerage`,
+            consigneeName: `${load.destinationHub.split(',')[0]} Commercial Distribution Center`,
+            taxId: companyInfo.feinTaxId || '36-9812019',
+            terms: 'Net 30 / Factoring QuickPay',
             subtotal: load.payout,
-            fees: 150, // standard fuel surcharge
-            totalDue: load.payout + 150
+            fees: fuel,
+            lumperAmount: lumper,
+            totalDue: Math.round((load.payout + fuel + lumper) * 100) / 100,
+            billingStatus: 'Ready for Billing',
+            billingPackageGeneratedAt: new Date().toISOString().replace('T', ' ').substring(0, 16),
+            notes: 'Automated billing package synthesized from verified Rate Con (Dispatch), Consignee-Signed BOL (Driver), and reimbursable Lumper receipts.'
           };
 
           // open draft edit panel automatically
@@ -309,7 +317,9 @@ export default function DispatchPortal({
             loadId,
             docType === 'rateCon' ? updatedFile : undefined,
             docType === 'bol' ? updatedFile : undefined,
-            invoiceDetails
+            invoiceDetails,
+            load.lumperReceiptFile,
+            isCompletePackage ? 'Ready for Billing' : 'Pending Documents'
           );
         }
       }
