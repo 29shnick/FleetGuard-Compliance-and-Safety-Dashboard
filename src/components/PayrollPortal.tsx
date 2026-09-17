@@ -333,6 +333,7 @@ export default function PayrollPortal({
           drivers={drivers}
           driverExpenses={driverExpenses}
           companyInfo={companyInfo}
+          currentUserRole={currentUserRole}
           onUpdateLoadDocs={onUpdateLoadDocs}
           onUpdateLoadStatus={onUpdateLoadStatus}
         />
@@ -557,11 +558,11 @@ export default function PayrollPortal({
                       </div>
                     </div>
 
-                    {/* Change state actions for CEO */}
+                    {/* Change state actions for CEO & Accounting */}
                     <div className="border-t border-slate-150 pt-4 space-y-2.5 print:hidden">
-                      <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-widest block">Release & Authorize Funds (CEO Desk)</span>
+                      <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-widest block">Release & Authorize Funds (Accounting & CEO Desk)</span>
                       
-                      {currentUserRole === 'Safety Manager & CEO' ? (
+                      {currentUserRole === 'Safety Manager & CEO' || currentUserRole === 'Accounting' ? (
                         <div className="grid grid-cols-2 gap-2">
                           {selectedStub.status === 'Pending Review' && (
                             <button

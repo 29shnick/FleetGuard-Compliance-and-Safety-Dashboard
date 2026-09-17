@@ -18,7 +18,7 @@ export interface CompanyInfo {
 
 export type ComplianceStatus = 'Compliant' | 'Warning' | 'NON-COMPLIANT';
 
-export type UserRole = 'Safety Manager & CEO' | 'Dispatcher' | 'Driver';
+export type UserRole = 'Safety Manager & CEO' | 'Dispatcher' | 'Driver' | 'Accounting';
 
 export interface UserSession {
   id: string; // "admin", "dispatcher-bob", or driver ID (e.g. "D1")

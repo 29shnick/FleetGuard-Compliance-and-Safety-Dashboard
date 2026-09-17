@@ -24,7 +24,8 @@ import {
   Calendar,
   Building2,
   FileCheck2,
-  Paperclip
+  Paperclip,
+  Lock
 } from 'lucide-react';
 import { DispatchLoad, Driver, DriverExpense, CompanyInfo } from '../types';
 import { DEFAULT_COMPANY_INFO } from '../data';
@@ -34,6 +35,7 @@ interface AutomatedBillingHubProps {
   drivers: Driver[];
   driverExpenses?: DriverExpense[];
   companyInfo?: CompanyInfo;
+  currentUserRole?: string;
   onUpdateLoadDocs?: (
     id: string,
     rateConFile?: { name: string; size: number; dataUrl?: string },
@@ -50,6 +52,7 @@ export default function AutomatedBillingHub({
   drivers,
   driverExpenses = [],
   companyInfo = DEFAULT_COMPANY_INFO,
+  currentUserRole = 'Accounting',
   onUpdateLoadDocs,
   onUpdateLoadStatus
 }: AutomatedBillingHubProps) {
@@ -308,6 +311,12 @@ export default function AutomatedBillingHub({
 
   // Submit to Factoring / Mark Billed
   const handleSubmitToFactoring = (load: DispatchLoad) => {
+    const canBill = currentUserRole === 'Accounting' || currentUserRole === 'Safety Manager & CEO' || currentUserRole === 'Owner' || (currentUserRole as string) === 'Administrator';
+    if (!canBill) {
+      setNotificationMsg('❌ Access Restricted: Factoring transmission and marking loads as billed requires Accounting or CEO clearance.');
+      setTimeout(() => setNotificationMsg(null), 5000);
+      return;
+    }
     setSubmittingFactoringId(load.id);
     setTimeout(() => {
       const currentInvoice = load.invoiceDetails || {
@@ -386,8 +395,14 @@ export default function AutomatedBillingHub({
             </p>
           </div>
 
-          <div className="flex items-center gap-2 shrink-0">
-            <span className="text-xs text-slate-500 font-medium">Auto-Compilation:</span>
+          <div className="flex flex-wrap items-center gap-2 shrink-0">
+            <div className="flex items-center gap-1.5 px-3 py-1 bg-slate-100 rounded-lg border border-slate-200 text-xs font-semibold text-slate-700">
+              <Lock size={12} className={currentUserRole === 'Accounting' || currentUserRole === 'Safety Manager & CEO' ? "text-emerald-600" : "text-amber-600"} />
+              <span>Authority:</span>
+              <span className={currentUserRole === 'Accounting' || currentUserRole === 'Safety Manager & CEO' ? "text-emerald-700 font-bold" : "text-amber-700 font-bold"}>
+                {currentUserRole === 'Accounting' ? 'Accounting Specialist' : currentUserRole === 'Safety Manager & CEO' ? 'CEO / Owner Desk' : 'Restricted'}
+              </span>
+            </div>
             <span className="bg-emerald-50 text-emerald-700 border border-emerald-200 text-xs px-2.5 py-1 rounded-lg font-bold flex items-center gap-1.5">
               <Check size={13} className="text-emerald-600" /> Active & Synchronized
             </span>

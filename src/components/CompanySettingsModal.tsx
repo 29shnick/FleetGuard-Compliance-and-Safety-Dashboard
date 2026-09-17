@@ -32,7 +32,7 @@ export default function CompanySettingsModal({
   const [formData, setFormData] = useState<CompanyInfo>({ ...companyInfo });
   const [savedSuccess, setSavedSuccess] = useState(false);
 
-  const canEdit = currentUserRole === 'Safety Manager & CEO' || (currentUserRole as string) === 'Administrator';
+  const canEdit = currentUserRole === 'Safety Manager & CEO' || currentUserRole === 'Accounting' || (currentUserRole as string) === 'Administrator';
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();

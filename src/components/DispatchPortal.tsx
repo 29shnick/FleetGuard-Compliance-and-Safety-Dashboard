@@ -38,7 +38,8 @@ import {
   ChevronDown,
   ChevronUp,
   Shield,
-  ShieldCheck
+  ShieldCheck,
+  Lock
 } from 'lucide-react';
 import { Driver, DispatchLoad, CompanyInfo, IncidentReport } from '../types';
 import { DEFAULT_COMPANY_INFO } from '../data';
@@ -62,8 +63,11 @@ interface DispatchPortalProps {
     id: string, 
     rateConFile?: { name: string; size: number; dataUrl?: string }, 
     bolFile?: { name: string; size: number; dataUrl?: string },
-    invoiceDetails?: DispatchLoad['invoiceDetails']
+    invoiceDetails?: DispatchLoad['invoiceDetails'],
+    lumperReceiptFile?: { name: string; size: number; dataUrl?: string; amount?: number },
+    billingStatus?: DispatchLoad['billingStatus']
   ) => void;
+  currentUserRole?: string;
 }
 
 // Top-tier high-accuracy geographic landmarks / shipping hubs
@@ -111,7 +115,8 @@ export default function DispatchPortal({
   onUpdateLoadStatus,
   onDeleteLoad,
   onUpdateIncident,
-  onUpdateLoadDocs
+  onUpdateLoadDocs,
+  currentUserRole = 'Dispatcher'
 }: DispatchPortalProps) {
   // Input fields state
   const [loadNumber, setLoadNumber] = useState(`LD-${Math.floor(1000 + Math.random() * 9000)}`);
@@ -1418,10 +1423,10 @@ export default function DispatchPortal({
                         className="w-full flex justify-between items-center text-[10px] uppercase tracking-wider font-extrabold text-slate-600 hover:text-slate-850 transition-colors"
                       >
                         <span className="flex items-center gap-1.5 text-indigo-700">
-                          <FileText size={12} className="shrink-0" /> Documents & Carrier Billing
+                          <FileText size={12} className="shrink-0" /> {currentUserRole === 'Accounting' || currentUserRole === 'Safety Manager & CEO' ? 'Documents & Carrier Billing' : 'Cargo Documents'}
                           {load.rateConFile && load.bolFile && (
                             <span className="bg-emerald-500 text-white text-[8px] px-1.5 py-0.2 rounded font-black ml-1 uppercase">
-                              {load.invoiceDetails ? 'Invoice Ready' : 'Ready to Compile'}
+                              {load.invoiceDetails && (currentUserRole === 'Accounting' || currentUserRole === 'Safety Manager & CEO') ? 'Invoice Ready' : 'Docs Verified'}
                             </span>
                           )}
                         </span>
@@ -1535,7 +1540,25 @@ export default function DispatchPortal({
 
                           {/* Column 2: Billing Invoice compilation status */}
                           <div className="space-y-3 bg-white p-3 rounded-xl border border-slate-200 w-full min-h-[140px] flex flex-col justify-between">
-                            {ocrScanningLoadId === load.id ? (
+                            {currentUserRole !== 'Accounting' && currentUserRole !== 'Safety Manager & CEO' ? (
+                              <div className="py-6 px-3 text-center space-y-2.5 flex-1 flex flex-col justify-center items-center bg-slate-50/80 rounded-xl border border-slate-200/80">
+                                <div className="w-9 h-9 rounded-full bg-amber-100 text-amber-700 flex items-center justify-center font-bold shadow-xs">
+                                  <Lock size={16} />
+                                </div>
+                                <div>
+                                  <strong className="text-[10px] uppercase font-black tracking-wider text-slate-800 block">Financial Invoicing Restricted</strong>
+                                  <p className="text-[9px] text-slate-500 max-w-[210px] mx-auto mt-1 leading-normal">
+                                    Carrier freight billing invoices, rate calculations, and factoring packages are strictly restricted to <strong>Accounting & Executive Management</strong>.
+                                  </p>
+                                </div>
+                                <div className="inline-flex items-center gap-1.5 text-[9px] font-mono font-bold text-slate-600 bg-white px-2.5 py-1 rounded-full border border-slate-200 shadow-2xs">
+                                  <span>Billing Package:</span>
+                                  <span className={load.billingStatus === 'Ready for Billing' ? 'text-emerald-600' : 'text-amber-600'}>
+                                    {load.billingStatus || 'Pending Docs'}
+                                  </span>
+                                </div>
+                              </div>
+                            ) : ocrScanningLoadId === load.id ? (
                               <div className="py-6 text-center space-y-2 flex-1 flex flex-col justify-center items-center">
                                 <RefreshCw className="animate-spin text-indigo-600" size={18} />
                                 <strong className="text-[10px] uppercase font-black tracking-wider text-slate-700">AI OCR Parsing</strong>

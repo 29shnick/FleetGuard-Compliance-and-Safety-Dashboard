@@ -428,6 +428,8 @@ export default function App() {
       setActiveTab('portal');
     } else if (currentUser.role === 'Dispatcher') {
       setActiveTab('dispatch');
+    } else if (currentUser.role === 'Accounting') {
+      setActiveTab('accounting');
     } else if (activeTab === 'portal' || activeTab === 'dispatch') {
       setActiveTab('overview');
     }
@@ -524,6 +526,16 @@ export default function App() {
 
   // Centralized Tab Router
   const handleNavigateToTab = (tab: string, sub?: 'credentials' | 'risk' | 'violations' | 'renewals' | 'vehicles') => {
+    const isAccountingAuthorized = currentUser.role === 'Safety Manager & CEO' || currentUser.role === 'Accounting';
+    if ((tab === 'accounting' || tab === 'payroll') && !isAccountingAuthorized) {
+      logSecurityAction(
+        'Accounting Access Blocked',
+        `User ${currentUser.name} (${currentUser.role}) attempted to access corporate accounting & payroll. Denied by RBAC policy.`,
+        'security'
+      );
+      return;
+    }
+
     if (tab === 'drivers') {
       setActiveTab('safety');
       setSafetySubTab('credentials');
@@ -1344,8 +1356,17 @@ export default function App() {
 
   const pendingRequestsCount = useMemo(() => renewalRequests.filter(r => r.status === 'Pending').length, [renewalRequests]);
 
+  const [theme, setTheme] = useState<'dark' | 'light'>(() => {
+    return (localStorage.getItem('fg_theme') as 'dark' | 'light') || 'dark';
+  });
+
+  const handleThemeChange = (newTheme: 'dark' | 'light') => {
+    setTheme(newTheme);
+    localStorage.setItem('fg_theme', newTheme);
+  };
+
   return (
-    <div className="min-h-screen bg-slate-50 flex flex-col font-sans text-slate-900">
+    <div className={`min-h-screen ${theme === 'dark' ? 'theme-dark bg-command-dark text-slate-100' : 'bg-command-light text-slate-900'} flex flex-col font-sans transition-colors duration-200`}>
       
       {/* Dynamic Security & SSO Context Bar */}
       <RbacPanel 
@@ -1360,6 +1381,8 @@ export default function App() {
         onLogSecurityAction={logSecurityAction}
         viewportMode={viewportMode}
         onViewportModeChange={setViewportMode}
+        theme={theme}
+        onThemeChange={handleThemeChange}
       />
 
       {/* Viewport Simulation Banner (when explicitly forcing mobile or desktop) */}
@@ -1473,8 +1496,9 @@ export default function App() {
               <div>
                 <p className="font-bold text-white leading-none">{currentUser.name}</p>
                 <p className="text-[10px] text-slate-400 mt-1 leading-none">Security Level {
-                  currentUser.role === 'Safety Manager & CEO' ? '3' :
-                  currentUser.role === 'Dispatcher' ? '2' : '1'
+                  currentUser.role === 'Safety Manager & CEO' ? '3 (Executive)' :
+                  currentUser.role === 'Accounting' ? '2 (Financial Controller)' :
+                  currentUser.role === 'Dispatcher' ? '2 (Operations)' : '1 (Field Operator)'
                 }</p>
               </div>
             </div>
@@ -1516,19 +1540,21 @@ export default function App() {
                     </span>
                   )}
                 </button>
-                <button 
-                  onClick={() => { handleNavigateToTab('accounting'); setIsMobileMenuOpen(false); }} 
-                  className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-lg transition-colors text-xs font-semibold uppercase tracking-wider ${activeTab === 'accounting' ? 'bg-blue-600 text-white shadow-xs' : 'hover:bg-slate-850'}`}
-                >
-                  <span className="flex items-center gap-3">
-                    <DollarSign size={14} /> Accounting & Payroll
-                  </span>
-                  {payStubs.filter(s => s.status === 'Pending Review').length > 0 && (
-                    <span className="bg-amber-500 text-slate-900 text-[10px] font-black px-1.5 py-0.5 rounded-full">
-                      {payStubs.filter(s => s.status === 'Pending Review').length}
+                {(currentUser.role === 'Safety Manager & CEO' || currentUser.role === 'Accounting') && (
+                  <button 
+                    onClick={() => { handleNavigateToTab('accounting'); setIsMobileMenuOpen(false); }} 
+                    className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-lg transition-colors text-xs font-semibold uppercase tracking-wider ${activeTab === 'accounting' ? 'bg-blue-600 text-white shadow-xs' : 'hover:bg-slate-850'}`}
+                  >
+                    <span className="flex items-center gap-3">
+                      <DollarSign size={14} /> Accounting & Payroll
                     </span>
-                  )}
-                </button>
+                    {payStubs.filter(s => s.status === 'Pending Review').length > 0 && (
+                      <span className="bg-amber-500 text-slate-900 text-[10px] font-black px-1.5 py-0.5 rounded-full">
+                        {payStubs.filter(s => s.status === 'Pending Review').length}
+                      </span>
+                    )}
+                  </button>
+                )}
                 <button 
                   onClick={() => { setActiveTab('logs'); setIsMobileMenuOpen(false); }} 
                   className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-lg transition-colors text-xs font-semibold uppercase tracking-wider ${activeTab === 'logs' ? 'bg-blue-600 text-white shadow-xs' : 'hover:bg-slate-850'}`}
@@ -1622,6 +1648,83 @@ export default function App() {
           {/* OVERVIEW TAB */}
           {activeTab === 'overview' && currentUser.role !== 'Driver' && (
             <div className="space-y-8 animate-fade-in">
+              {/* Executive Command Bridge Hero & Live Telemetry Hub */}
+              <div className={`p-6 rounded-2xl border transition-all duration-300 relative overflow-hidden ${
+                theme === 'dark'
+                  ? 'bg-gradient-to-br from-slate-900/90 via-slate-900/70 to-blue-950/40 border-slate-800 shadow-2xl'
+                  : 'bg-white/95 border-slate-200 shadow-md'
+              }`}>
+                {/* Ambient luminous glow accents */}
+                <div className="absolute -top-24 -right-24 w-80 h-80 bg-blue-600/10 rounded-full blur-3xl pointer-events-none" />
+                <div className="absolute -bottom-24 -left-24 w-80 h-80 bg-emerald-600/10 rounded-full blur-3xl pointer-events-none" />
+
+                <div className="relative z-10 flex flex-col lg:flex-row lg:items-center justify-between gap-6">
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-2.5 flex-wrap">
+                      <span className="flex h-2.5 w-2.5 relative">
+                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                        <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span>
+                      </span>
+                      <span className="font-mono text-[11px] font-black uppercase tracking-widest text-emerald-400 bg-emerald-950/70 border border-emerald-800/80 px-2.5 py-0.5 rounded-full">
+                        DEFCON 1 • ALL FLEET SYSTEMS NOMINAL
+                      </span>
+                      <span className="text-[11px] font-mono text-slate-400 hidden sm:inline">
+                        USDOT# 3948210 • MC# 109482 • IFTA 2026-Q2
+                      </span>
+                    </div>
+                    
+                    <h2 className="text-2xl lg:text-3xl font-black tracking-tight text-white flex items-center gap-3">
+                      Fleet Operations Command
+                      <span className="text-xs font-mono font-normal text-blue-400 bg-blue-950/80 border border-blue-800/60 px-2 py-0.5 rounded">
+                        LIVE TELEMETRY
+                      </span>
+                    </h2>
+                    <p className="text-xs lg:text-sm text-slate-300 max-w-2xl leading-relaxed">
+                      Autonomous regulatory tracking, 3-way freight invoice synthesis, and GPS-synchronized DOT compliance monitoring for <strong className="text-white">FastGate Logistics LLC</strong>.
+                    </p>
+                  </div>
+
+                  {/* Live Key Operational Telemetry Chips */}
+                  <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-2 xl:grid-cols-4 gap-2.5 shrink-0">
+                    <div className={`p-3 rounded-xl border text-center ${
+                      theme === 'dark' ? 'bg-slate-950/70 border-slate-800/80' : 'bg-slate-50 border-slate-200'
+                    }`}>
+                      <p className="text-[10px] font-mono uppercase tracking-wider text-slate-400 font-bold">Audit Score</p>
+                      <p className="text-lg font-black text-emerald-400 mt-0.5">{fleetHealthScore}%</p>
+                      <span className="text-[9px] text-emerald-500 font-semibold">Tier-1 Cleared</span>
+                    </div>
+
+                    <div className={`p-3 rounded-xl border text-center ${
+                      theme === 'dark' ? 'bg-slate-950/70 border-slate-800/80' : 'bg-slate-50 border-slate-200'
+                    }`}>
+                      <p className="text-[10px] font-mono uppercase tracking-wider text-slate-400 font-bold">Active Units</p>
+                      <p className="text-lg font-black text-blue-400 mt-0.5">4 / 4</p>
+                      <span className="text-[9px] text-slate-400 font-semibold">100% Inspected</span>
+                    </div>
+
+                    <div className={`p-3 rounded-xl border text-center ${
+                      theme === 'dark' ? 'bg-slate-950/70 border-slate-800/80' : 'bg-slate-50 border-slate-200'
+                    }`}>
+                      <p className="text-[10px] font-mono uppercase tracking-wider text-slate-400 font-bold">Manifest Loads</p>
+                      <p className="text-lg font-black text-indigo-400 mt-0.5">{loads.length}</p>
+                      <span className="text-[9px] text-indigo-400 font-semibold">${loads.reduce((acc, l) => acc + l.payout, 0).toLocaleString()} Value</span>
+                    </div>
+
+                    <div className={`p-3 rounded-xl border text-center ${
+                      theme === 'dark' ? 'bg-slate-950/70 border-slate-800/80' : 'bg-slate-50 border-slate-200'
+                    }`}>
+                      <p className="text-[10px] font-mono uppercase tracking-wider text-slate-400 font-bold">Roadside Alert</p>
+                      <p className={`text-lg font-black mt-0.5 ${activeIncidentsCount > 0 ? 'text-rose-400 animate-pulse' : 'text-slate-300'}`}>
+                        {activeIncidentsCount}
+                      </p>
+                      <span className="text-[9px] text-slate-400 font-semibold">
+                        {activeIncidentsCount > 0 ? 'Action Needed' : 'Zero Active'}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
               {/* Executive Pillar Navigation Cards */}
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 {/* Pillar 1: Safety */}
@@ -1726,13 +1829,21 @@ export default function App() {
                     <div className="mt-4 space-y-1 text-xs text-slate-600">
                       <p className="flex justify-between">
                         <span>Weekly Gross Settlement:</span>
-                        <span className="font-bold text-slate-900">${payStubs.reduce((acc, s) => acc + s.grossAmount, 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+                        {currentUser.role === 'Dispatcher' ? (
+                          <span className="font-bold text-slate-400 italic">Restricted (Level 2)</span>
+                        ) : (
+                          <span className="font-bold text-slate-900">${payStubs.reduce((acc, s) => acc + s.grossAmount, 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+                        )}
                       </p>
                       <p className="flex justify-between">
                         <span>Stubs Pending Review:</span>
-                        <span className={`font-bold ${payStubs.filter(s => s.status === 'Pending Review').length > 0 ? 'text-amber-600' : 'text-slate-900'}`}>
-                          {payStubs.filter(s => s.status === 'Pending Review').length} Stubs
-                        </span>
+                        {currentUser.role === 'Dispatcher' ? (
+                          <span className="font-bold text-slate-400 italic">Accounting Only</span>
+                        ) : (
+                          <span className={`font-bold ${payStubs.filter(s => s.status === 'Pending Review').length > 0 ? 'text-amber-600' : 'text-slate-900'}`}>
+                            {payStubs.filter(s => s.status === 'Pending Review').length} Stubs
+                          </span>
+                        )}
                       </p>
                       <p className="flex justify-between">
                         <span>Fuel Tax Filing:</span>
@@ -1740,12 +1851,18 @@ export default function App() {
                       </p>
                     </div>
                   </div>
-                  <button
-                    onClick={() => handleNavigateToTab('accounting')}
-                    className="mt-5 w-full flex items-center justify-center gap-2 py-2 px-3 text-xs font-bold text-emerald-600 bg-emerald-50 hover:bg-emerald-100 rounded-lg transition-colors uppercase tracking-wider"
-                  >
-                    Open Accounting Hub <ArrowRight size={13} />
-                  </button>
+                  {currentUser.role === 'Dispatcher' ? (
+                    <div className="mt-5 w-full flex items-center justify-center gap-2 py-2 px-3 text-xs font-bold text-slate-400 bg-slate-100 rounded-lg cursor-not-allowed uppercase tracking-wider">
+                      <Lock size={13} /> Accounting & CEO Restricted
+                    </div>
+                  ) : (
+                    <button
+                      onClick={() => handleNavigateToTab('accounting')}
+                      className="mt-5 w-full flex items-center justify-center gap-2 py-2 px-3 text-xs font-bold text-emerald-600 bg-emerald-50 hover:bg-emerald-100 rounded-lg transition-colors uppercase tracking-wider"
+                    >
+                      Open Accounting Hub <ArrowRight size={13} />
+                    </button>
+                  )}
                 </div>
               </div>
 
@@ -1778,7 +1895,16 @@ export default function App() {
                       <BarChart data={complianceData}>
                         <XAxis dataKey="name" fontSize={11} axisLine={false} tickLine={false} />
                         <YAxis allowDecimals={false} fontSize={11} axisLine={false} tickLine={false} />
-                        <Tooltip cursor={{ fill: '#f1f5f9' }} contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }} />
+                        <Tooltip 
+                          cursor={{ fill: theme === 'dark' ? 'rgba(51, 65, 85, 0.3)' : '#f1f5f9' }} 
+                          contentStyle={{ 
+                            backgroundColor: theme === 'dark' ? '#0f172a' : '#ffffff', 
+                            color: theme === 'dark' ? '#f8fafc' : '#0f172a',
+                            borderRadius: '8px', 
+                            border: theme === 'dark' ? '1px solid #334155' : 'none', 
+                            boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.3)' 
+                          }} 
+                        />
                         <Bar dataKey="value" radius={[6, 6, 0, 0]}>
                           {complianceData.map((entry, index) => <Cell key={`cell-${index}`} fill={entry.color} />)}
                         </Bar>
@@ -1945,6 +2071,7 @@ export default function App() {
               loads={loads} 
               companyInfo={companyInfo}
               incidents={incidents}
+              currentUserRole={currentUser.role}
               onAddLoad={handleCreateLoad} 
               onUpdateLoadStatus={handleUpdateLoadStatus} 
               onDeleteLoad={handleDeleteLoad} 
@@ -1954,21 +2081,42 @@ export default function App() {
           )}
 
           {/* ACCOUNTING & PAYROLL HQ ACTIVE */}
-          {(activeTab === 'accounting' || activeTab === 'payroll') && currentUser.role !== 'Driver' && (
-            <PayrollPortal 
-              payStubs={payStubs}
-              loads={loads}
-              drivers={drivers}
-              currentUserRole={currentUser.role}
-              companyInfo={companyInfo}
-              onUpdateStubStatus={handleUpdateStubStatus}
-              maintenanceInvoices={maintenanceInvoices}
-              driverExpenses={driverExpenses}
-              fuelTransactions={fuelTransactions}
-              onImportFuelTransactions={handleImportFuelTransactions}
-              onUpdateLoadDocs={handleUpdateLoadDocs}
-              onUpdateLoadStatus={handleUpdateLoadStatus}
-            />
+          {(activeTab === 'accounting' || activeTab === 'payroll') && (
+            (currentUser.role === 'Safety Manager & CEO' || currentUser.role === 'Accounting') ? (
+              <PayrollPortal 
+                payStubs={payStubs}
+                loads={loads}
+                drivers={drivers}
+                currentUserRole={currentUser.role}
+                companyInfo={companyInfo}
+                onUpdateStubStatus={handleUpdateStubStatus}
+                maintenanceInvoices={maintenanceInvoices}
+                driverExpenses={driverExpenses}
+                fuelTransactions={fuelTransactions}
+                onImportFuelTransactions={handleImportFuelTransactions}
+                onUpdateLoadDocs={handleUpdateLoadDocs}
+                onUpdateLoadStatus={handleUpdateLoadStatus}
+              />
+            ) : (
+              <div className="max-w-xl mx-auto my-12 p-8 bg-white rounded-2xl border border-rose-200 shadow-xl text-center space-y-4">
+                <div className="w-14 h-14 rounded-2xl bg-rose-100 text-rose-600 flex items-center justify-center mx-auto shadow-inner">
+                  <Lock size={28} />
+                </div>
+                <h2 className="text-xl font-black text-slate-900 tracking-tight">Security Clearance Restricted</h2>
+                <p className="text-xs text-slate-600 leading-relaxed max-w-md mx-auto">
+                  The Accounting & Payroll Hub, carrier billing invoices, freight factoring packages, and driver settlement checks are strictly restricted to <strong>Accounting Specialists</strong> and <strong>Executive Management (CEO/Owner)</strong>.
+                </p>
+                <div className="p-3 bg-slate-50 rounded-xl border border-slate-200 text-xs font-mono text-slate-600">
+                  Current User: <span className="font-bold text-slate-900">{currentUser.name}</span> ({currentUser.role}) • Status: <span className="text-rose-600 font-bold">Access Denied</span>
+                </div>
+                <button
+                  onClick={() => setActiveTab('overview')}
+                  className="px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs rounded-xl uppercase tracking-wider transition-colors shadow-xs"
+                >
+                  Return to Command Overview
+                </button>
+              </div>
+            )
           )}
 
         </main>
@@ -2019,19 +2167,21 @@ export default function App() {
                 )}
               </button>
 
-              <button
-                type="button"
-                onClick={() => { handleNavigateToTab('accounting'); setIsMobileMenuOpen(false); }}
-                className={`flex flex-col items-center py-1 px-3 rounded-lg relative transition-colors ${
-                  activeTab === 'accounting' || activeTab === 'payroll' ? 'text-blue-600 font-extrabold' : 'text-slate-500 hover:text-slate-900'
-                }`}
-              >
-                <DollarSign size={18} />
-                <span className="text-[10px] mt-0.5 font-semibold">Payroll</span>
-                {payStubs.filter(s => s.status === 'Pending Review').length > 0 && (
-                  <span className="absolute top-0.5 right-2 w-2 h-2 rounded-full bg-amber-500 ring-2 ring-white" />
-                )}
-              </button>
+              {(currentUser.role === 'Safety Manager & CEO' || currentUser.role === 'Accounting') && (
+                <button
+                  type="button"
+                  onClick={() => { handleNavigateToTab('accounting'); setIsMobileMenuOpen(false); }}
+                  className={`flex flex-col items-center py-1 px-3 rounded-lg relative transition-colors ${
+                    activeTab === 'accounting' || activeTab === 'payroll' ? 'text-blue-600 font-extrabold' : 'text-slate-500 hover:text-slate-900'
+                  }`}
+                >
+                  <DollarSign size={18} />
+                  <span className="text-[10px] mt-0.5 font-semibold">Payroll</span>
+                  {payStubs.filter(s => s.status === 'Pending Review').length > 0 && (
+                    <span className="absolute top-0.5 right-2 w-2 h-2 rounded-full bg-amber-500 ring-2 ring-white" />
+                  )}
+                </button>
+              )}
 
               <button
                 type="button"

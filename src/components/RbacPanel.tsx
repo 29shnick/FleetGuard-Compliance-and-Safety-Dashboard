@@ -11,13 +11,18 @@ import {
   Clock,
   Monitor,
   Smartphone,
-  MonitorSmartphone
+  MonitorSmartphone,
+  Moon,
+  Sun,
+  Sparkles,
+  DollarSign
 } from 'lucide-react';
 import { UserSession, UserRole, Driver, RenewalRequest } from '../types';
 import AlertsDropdown from './AlertsDropdown';
 
 export const SIMULATED_USERS: UserSession[] = [
   { id: 'admin-alice', name: 'Alice Vance', role: 'Safety Manager & CEO' },
+  { id: 'accounting-clara', name: 'Clara Oswald', role: 'Accounting' },
   { id: 'dispatcher-bob', name: 'Bob Carter', role: 'Dispatcher' },
   { id: 'D5', name: 'Linda Garcia', role: 'Driver', driverId: 'D5' },
   { id: 'D2', name: 'James Wilson', role: 'Driver', driverId: 'D2' },
@@ -36,6 +41,8 @@ interface RbacPanelProps {
   onLogSecurityAction?: (action: string, details: string, type: 'security' | 'data_edit' | 'approval' | 'incident') => void;
   viewportMode?: 'auto' | 'desktop' | 'mobile';
   onViewportModeChange?: (mode: 'auto' | 'desktop' | 'mobile') => void;
+  theme?: 'dark' | 'light';
+  onThemeChange?: (theme: 'dark' | 'light') => void;
 }
 
 export default function RbacPanel({ 
@@ -49,7 +56,9 @@ export default function RbacPanel({
   onSubmitRenewal,
   onLogSecurityAction,
   viewportMode = 'auto',
-  onViewportModeChange
+  onViewportModeChange,
+  theme = 'dark',
+  onThemeChange
 }: RbacPanelProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [showGuide, setShowGuide] = useState(false);
@@ -58,6 +67,8 @@ export default function RbacPanel({
     switch (role) {
       case 'Safety Manager & CEO':
         return 'bg-rose-50 text-rose-700 border-rose-200';
+      case 'Accounting':
+        return 'bg-emerald-50 text-emerald-700 border-emerald-200';
       case 'Dispatcher':
         return 'bg-amber-50 text-amber-700 border-amber-200';
       case 'Driver':
@@ -75,6 +86,8 @@ export default function RbacPanel({
           <div className="w-10 h-10 rounded-full bg-slate-900 border border-slate-200 flex items-center justify-center">
             {currentUser.role === 'Safety Manager & CEO' ? (
               <Shield className="w-5 h-5 text-rose-500 animate-pulse" />
+            ) : currentUser.role === 'Accounting' ? (
+              <DollarSign className="w-5 h-5 text-emerald-400" />
             ) : currentUser.role === 'Dispatcher' ? (
               <Shield className="w-5 h-5 text-amber-500" />
             ) : (
@@ -159,6 +172,32 @@ export default function RbacPanel({
           <Clock size={12} />
           <span>{currentMockTime} UTC</span>
         </div>
+
+        {/* Executive Atmosphere / Theme Switcher */}
+        {onThemeChange && (
+          <button
+            type="button"
+            onClick={() => onThemeChange(theme === 'dark' ? 'light' : 'dark')}
+            className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-bold border transition-all ${
+              theme === 'dark'
+                ? 'bg-slate-900 text-blue-400 border-blue-900/60 hover:bg-slate-850 hover:text-blue-300 shadow-xs'
+                : 'bg-slate-100 text-slate-700 border-slate-300 hover:bg-slate-200'
+            }`}
+            title={`Toggle Theme (Current: ${theme === 'dark' ? 'Executive Command Dark' : 'Steel Slate Day Mode'})`}
+          >
+            {theme === 'dark' ? (
+              <>
+                <Moon size={13} className="text-blue-400" />
+                <span className="hidden sm:inline text-[11px] uppercase tracking-wider">Command Dark</span>
+              </>
+            ) : (
+              <>
+                <Sun size={13} className="text-amber-500" />
+                <span className="hidden sm:inline text-[11px] uppercase tracking-wider">Steel Slate</span>
+              </>
+            )}
+          </button>
+        )}
 
         {/* Top Header Alerts Notification System */}
         <AlertsDropdown
@@ -246,27 +285,39 @@ export default function RbacPanel({
             <div>
               <p className="font-bold text-slate-100 uppercase text-[10px] tracking-wider mb-2">1. Safety Manager & CEO Profile</p>
               <ul className="list-disc list-inside space-y-1.5 text-slate-400">
-                <li><span className="text-emerald-400 font-semibold">View</span>: Global diagnostics, driver logs, fleet statuses, and FMCSA audit checklists. Also commands and releases weekly payroll stubs.</li>
-                <li><span className="text-emerald-400 font-semibold">Audit Actions</span>: Flag high-risk drivers, audit CDL & medical certificate expiration warnings.</li>
-                <li><span className="text-emerald-400 font-semibold">Decisions</span>: Approve/Decline proposed driver credentials updates instantly. Approve and authorize weekly paychecks.</li>
+                <li><span className="text-emerald-400 font-semibold">Clearance</span>: Level 3 (Global Executive & Safety Authority).</li>
+                <li><span className="text-emerald-400 font-semibold">View</span>: Global diagnostics, driver logs, fleet statuses, and FMCSA audit checklists. Full access to accounting ledgers, carrier invoices, and payroll stubs.</li>
+                <li><span className="text-emerald-400 font-semibold">Decisions</span>: Approve/Decline proposed driver credentials updates instantly. Authorize weekly paychecks and factoring submissions.</li>
               </ul>
             </div>
 
             <div className="pt-4 border-t border-slate-800">
-              <p className="font-bold text-slate-100 uppercase text-[10px] tracking-wider mb-2">2. Dispatcher Profile</p>
+              <p className="font-bold text-slate-100 uppercase text-[10px] tracking-wider mb-2">2. Accounting & Billing Specialist Profile</p>
               <ul className="list-disc list-inside space-y-1.5 text-slate-400">
-                <li><span className="text-emerald-400 font-semibold">View</span>: Active dispatcher loads list, driver availability statuses.</li>
-                <li><span className="text-emerald-400 font-semibold">Actions</span>: Enter shipping loads, select custom hubs, and run auto-calculation.</li>
-                <li><span className="text-amber-400 font-semibold">Miles calculation</span>: Automatic route miles and gross payout calculation.</li>
+                <li><span className="text-emerald-400 font-semibold">Clearance</span>: Level 2 (Financial Controller & Billing Authority).</li>
+                <li><span className="text-emerald-400 font-semibold">View</span>: Full access to Carrier Invoices, Freight Factoring Packages, Driver Weekly Payroll Settlements, 1099/W-2 tax statements, and IFTA Fuel Tax reports.</li>
+                <li><span className="text-emerald-400 font-semibold">Actions</span>: Compile billing invoices, submit to factoring, authorize weekly settlement payouts, and reconcile fuel card ledgers.</li>
+                <li><span className="text-rose-400 font-semibold">Restrictions</span>: Prohibited from certifying driver CDL/medical clearances or altering active dispatch routes.</li>
               </ul>
             </div>
 
             <div className="pt-4 border-t border-slate-800">
-              <p className="font-bold text-slate-100 uppercase text-[10px] tracking-wider mb-2">3. Driver Profile</p>
+              <p className="font-bold text-slate-100 uppercase text-[10px] tracking-wider mb-2">3. Dispatcher Profile</p>
               <ul className="list-disc list-inside space-y-1.5 text-slate-400">
-                <li><span className="text-emerald-400 font-semibold">View</span>: Restricted strictly to their own individual record, compliance notifications, and active loads.</li>
-                <li><span className="text-rose-400 font-semibold">Privacy Gates</span>: Other driver logs, vehicle indices, and sensitive dispatcher data are hidden.</li>
-                <li><span className="text-emerald-400 font-semibold">Actions</span>: Submit documents renewal, see trip distance alerts.</li>
+                <li><span className="text-emerald-400 font-semibold">Clearance</span>: Level 2 (Operational Fleet Dispatch).</li>
+                <li><span className="text-emerald-400 font-semibold">View</span>: Active dispatcher load manifests, driver availability statuses, and roadside incident board.</li>
+                <li><span className="text-emerald-400 font-semibold">Actions</span>: Dispatch shipments, attach Rate Confirmations, track trip miles and transit milestones.</li>
+                <li><span className="text-rose-400 font-semibold">Restrictions</span>: <strong className="text-slate-200">Strictly prohibited</strong> from accessing Accounting & Payroll ledgers, factoring submissions, billing invoices, or driver pay rates.</li>
+              </ul>
+            </div>
+
+            <div className="pt-4 border-t border-slate-800">
+              <p className="font-bold text-slate-100 uppercase text-[10px] tracking-wider mb-2">4. Driver Profile</p>
+              <ul className="list-disc list-inside space-y-1.5 text-slate-400">
+                <li><span className="text-emerald-400 font-semibold">Clearance</span>: Level 1 (Field Operator Access).</li>
+                <li><span className="text-emerald-400 font-semibold">View</span>: Restricted strictly to their own individual record, personal settlements, and assigned trip documentation.</li>
+                <li><span className="text-rose-400 font-semibold">Privacy Gates</span>: Other drivers' records, financial accounting, and dispatch boards are completely hidden.</li>
+                <li><span className="text-emerald-400 font-semibold">Actions</span>: Upload signed BOLs & Lumper receipts, submit document renewals, and report roadside incidents.</li>
               </ul>
             </div>
           </div>
